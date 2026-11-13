@@ -1,0 +1,51 @@
+.card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--bk-space-6);
+  background: var(--bk-color-surface);
+  color: var(--bk-color-text);
+  border: 1px solid var(--bk-color-border);
+  border-radius: var(--bk-radius-lg);
+  box-shadow: var(--bk-shadow-sm);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bk-space-3) var(--bk-space-4);
+  margin-block-end: var(--bk-space-4);
+}
+
+.heading {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--bk-font-size-lg);
+  font-weight: 600;
+  color: var(--bk-color-text);
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin: var(--bk-space-1) 0 0;
+  font-size: var(--bk-font-size-sm);
+  color: var(--bk-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Padding keeps a focus ring on the action's controls from being clipped by an ancestor. */
+.action {
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: var(--bk-space-1);
+  margin: calc(-1 * var(--bk-space-1));
+}
+
+.body {
+  min-width: 0;
+}
