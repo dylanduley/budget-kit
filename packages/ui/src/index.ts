@@ -1,2 +1,3 @@
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button/Button';
 export { TextField, type TextFieldProps } from './TextField/TextField';
+export { Badge, type BadgeProps, type BadgeVariant } from './Badge/Badge';
