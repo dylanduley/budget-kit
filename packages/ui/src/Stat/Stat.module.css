@@ -24,6 +24,7 @@
 }
 
 .change {
+  position: relative;
   color: var(--bk-color-text-muted);
   font-size: var(--bk-font-size-sm);
 }
