@@ -139,7 +139,7 @@ describe('Stat', () => {
   });
 
   it('props cannot override data-tone on the root', () => {
-    const { container } = render(<Stat label="L" value="V" tone="good" />);
+    const { container } = render(<Stat label="L" value="V" tone="good" data-tone="bad" />);
     expect(container.firstElementChild).toHaveAttribute('data-tone', 'good');
   });
 
