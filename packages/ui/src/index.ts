@@ -1,2 +1,1 @@
-// Components are exported from here as they are built (docs/specs/components.md).
-export {};
+export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button/Button';
