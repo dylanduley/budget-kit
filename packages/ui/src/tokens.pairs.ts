@@ -33,4 +33,13 @@ export const contrastPairs: ContrastPair[] = [
   { text: '--bk-color-border-strong', background: '--bk-color-surface', min: 3 },
   { text: '--bk-color-focus', background: '--bk-color-bg', min: 3 },
   { text: '--bk-color-focus', background: '--bk-color-surface', min: 3 },
+  { text: '--bk-color-success-text', background: '--bk-color-bg', min: 4.5 },
+  { text: '--bk-color-warning-text', background: '--bk-color-bg', min: 4.5 },
+  { text: '--bk-color-danger-text', background: '--bk-color-bg', min: 4.5 },
+  { text: '--bk-color-danger', background: '--bk-color-surface', min: 3 },
+  { text: '--bk-color-danger', background: '--bk-color-bg', min: 3 },
+  { text: '--bk-color-border-strong', background: '--bk-color-surface-subtle', min: 3 },
+  { text: '--bk-color-success', background: '--bk-color-surface-subtle', min: 3 },
+  { text: '--bk-color-warning', background: '--bk-color-surface-subtle', min: 3 },
+  { text: '--bk-color-danger', background: '--bk-color-surface-subtle', min: 3 },
 ];

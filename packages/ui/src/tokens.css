@@ -56,6 +56,8 @@
   --bk-color-danger-bg: var(--bk-danger-50);
   --bk-color-danger-text: var(--bk-danger-800);
   --bk-color-on-status: var(--bk-neutral-0);
+  /* Scrim behind modal dialogs */
+  --bk-color-overlay: rgb(27 36 44 / 0.5);
 
   --bk-color-focus: var(--bk-primary-600);
   --bk-focus-ring: 0 0 0 2px var(--bk-color-surface), 0 0 0 4px var(--bk-color-focus);
