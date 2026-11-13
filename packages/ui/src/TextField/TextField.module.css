@@ -37,7 +37,6 @@
   color: var(--bk-color-text);
   font-family: inherit;
   font-size: var(--bk-font-size-md);
-  outline: none;
 }
 
 .input::placeholder {
@@ -47,4 +46,10 @@
 
 .input:disabled {
   color: var(--bk-color-text-muted);
+}
+
+@supports selector(:has(*)) {
+  .input:focus-visible {
+    outline: none;
+  }
 }
