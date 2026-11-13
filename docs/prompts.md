@@ -11,9 +11,9 @@ Paste these into Claude Code (main session on Fable), one step at a time. Review
 _(Review the tasks. Edit any vague acceptance criteria.)_
 
 ## Step 2: Build the library
-> For tasks 1–5, use the component-builder agent on each one (run independent ones in parallel). After each one finishes, run the qa agent on it, then the a11y-reviewer, then the code-reviewer. If any of them fail, send the exact failure back to the component-builder and repeat. Stop and show me a summary when tasks 1–5 are approved.
+> Follow the parallel groups in docs/tasks/README.md. Start with task 00 on its own. Then, for group A (tasks 01, 02, 05, 06, 07, 08, 10), use the component-builder agent on each one, in parallel. After each one finishes, run the qa agent on it, then the a11y-reviewer, then the code-reviewer. If any of them fail, send the exact failure back to the component-builder and repeat. Stop and show me a summary when group A is approved.
 
-_(Review in Storybook. Then repeat for tasks 6–10.)_
+_(Review in Storybook. Then repeat for group B: tasks 03, 04, 09.)_
 
 > Use the docs-writer agent to document the components and update docs/build-log.md.
 
