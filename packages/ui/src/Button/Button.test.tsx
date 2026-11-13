@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -339,5 +342,38 @@ describe('Button: importable from the package index', () => {
     expect(ButtonFromIndex).toBe(Button);
     const props: ButtonProps = { children: 'x', variant: 'ghost', size: 'sm', loading: false, type: 'reset' };
     expect(props.variant).toBe('ghost');
+  });
+});
+
+describe('Button: consumer aria attributes', () => {
+  it('keeps a consumer aria-disabled="true" when not loading', () => {
+    render(<Button aria-disabled="true">Go</Button>);
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('keeps a consumer aria-busy="true" when not loading', () => {
+    render(<Button aria-busy="true">Go</Button>);
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('component aria-busy and aria-disabled win over consumer values while loading', () => {
+    render(
+      <Button loading aria-disabled="false" aria-busy="false">
+        Go
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Go' });
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('Button: loading label stays in the accessibility tree (source guard)', () => {
+  it('the loading label rule does not use visibility: hidden or display: none', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/Button/Button.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = /\[data-loading=['"]true['"]\]\s*\.label\s*\{([^}]*)\}/.exec(css);
+    expect(rule).not.toBeNull();
+    expect(rule?.[1]).not.toMatch(/visibility\s*:\s*hidden/);
+    expect(rule?.[1]).not.toMatch(/display\s*:\s*none/);
   });
 });
