@@ -24,6 +24,15 @@ const columns: TableColumn<Expense>[] = [
   { key: 'amount', header: 'Amount', numeric: true, cell: (row) => formatCents(row.cents) },
 ];
 
+const columnsWithAction: TableColumn<Expense>[] = [
+  ...columns,
+  {
+    key: 'actions',
+    header: 'Actions',
+    cell: (row) => <button type="button">Delete {row.note}</button>,
+  },
+];
+
 const meta = {
   title: 'Components/Table',
   component: Table<Expense>,
@@ -65,18 +74,12 @@ export const CustomEmptyState: Story = {
 
 export const WithRowAction: Story = {
   args: {
-    columns: [
-      ...columns,
-      {
-        key: 'actions',
-        header: 'Actions',
-        cell: (row: Expense) => <button type="button">Delete {row.note}</button>,
-      },
-    ],
+    columns: columnsWithAction,
   },
 };
 
 export const NarrowViewport: Story = {
+  args: { columns: columnsWithAction },
   render: (args) => (
     <div style={{ width: '320px' }}>
       <Table {...args} />
