@@ -2,3 +2,4 @@ export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from '.
 export { TextField, type TextFieldProps } from './TextField/TextField';
 export { Badge, type BadgeProps, type BadgeVariant } from './Badge/Badge';
 export { Card, type CardProps } from './Card/Card';
+export { Stat, type StatProps, type StatTone } from './Stat/Stat';
