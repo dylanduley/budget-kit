@@ -1,2 +1,1 @@
-// Components are exported from here as they are built (docs/specs/components.md).
-export {};
+export { Badge, type BadgeProps, type BadgeVariant } from './Badge/Badge';
