@@ -1,0 +1,101 @@
+:root {
+  /* Neutral scale (cool slate) */
+  --bk-neutral-0: #ffffff;
+  --bk-neutral-50: #f6f8f9;
+  --bk-neutral-100: #eceff1;
+  --bk-neutral-200: #dce1e5;
+  --bk-neutral-300: #c2c9d0;
+  --bk-neutral-400: #7b8794;
+  --bk-neutral-500: #55626e;
+  --bk-neutral-700: #36414b;
+  --bk-neutral-900: #1b242c;
+
+  /* Primary (teal) */
+  --bk-primary-50: #e3f1ef;
+  --bk-primary-200: #a9d3cf;
+  --bk-primary-600: #1f6f6b;
+  --bk-primary-700: #185a57;
+  --bk-primary-800: #124643;
+
+  /* Status: -bg is a tint, -solid takes white text, -text is safe on the tint and on surfaces */
+  --bk-success-50: #e6f4ea;
+  --bk-success-600: #2a7647;
+  --bk-success-800: #1c5c37;
+  --bk-warning-50: #fcf1d8;
+  --bk-warning-600: #8a5a00;
+  --bk-warning-800: #6f4400;
+  --bk-danger-50: #fcebe8;
+  --bk-danger-600: #b3382d;
+  --bk-danger-800: #8f2018;
+
+  /* Semantic colors: components use these, not the raw scales */
+  --bk-color-bg: var(--bk-neutral-50);
+  --bk-color-surface: var(--bk-neutral-0);
+  --bk-color-surface-subtle: var(--bk-neutral-100);
+  --bk-color-text: var(--bk-neutral-900);
+  --bk-color-text-muted: var(--bk-neutral-500);
+  --bk-color-border: var(--bk-neutral-200);
+  /* 3:1 against bg and surface, for input and control outlines */
+  --bk-color-border-strong: var(--bk-neutral-400);
+
+  --bk-color-primary: var(--bk-primary-600);
+  --bk-color-primary-hover: var(--bk-primary-700);
+  --bk-color-primary-active: var(--bk-primary-800);
+  --bk-color-on-primary: var(--bk-neutral-0);
+  --bk-color-primary-subtle: var(--bk-primary-50);
+  --bk-color-primary-text: var(--bk-primary-700);
+
+  --bk-color-success: var(--bk-success-600);
+  --bk-color-success-bg: var(--bk-success-50);
+  --bk-color-success-text: var(--bk-success-800);
+  --bk-color-warning: var(--bk-warning-600);
+  --bk-color-warning-bg: var(--bk-warning-50);
+  --bk-color-warning-text: var(--bk-warning-800);
+  --bk-color-danger: var(--bk-danger-600);
+  --bk-color-danger-hover: var(--bk-danger-800);
+  --bk-color-danger-bg: var(--bk-danger-50);
+  --bk-color-danger-text: var(--bk-danger-800);
+  --bk-color-on-status: var(--bk-neutral-0);
+
+  --bk-color-focus: var(--bk-primary-600);
+  --bk-focus-ring: 0 0 0 2px var(--bk-color-surface), 0 0 0 4px var(--bk-color-focus);
+
+  /* Spacing (4px base) */
+  --bk-space-1: 0.25rem;
+  --bk-space-2: 0.5rem;
+  --bk-space-3: 0.75rem;
+  --bk-space-4: 1rem;
+  --bk-space-5: 1.25rem;
+  --bk-space-6: 1.5rem;
+  --bk-space-8: 2rem;
+  --bk-space-10: 2.5rem;
+  --bk-space-12: 3rem;
+  --bk-space-16: 4rem;
+
+  /* Radii */
+  --bk-radius-sm: 0.25rem;
+  --bk-radius-md: 0.5rem;
+  --bk-radius-lg: 0.75rem;
+  --bk-radius-full: 9999px;
+
+  /* Typography */
+  --bk-font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --bk-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bk-font-size-xs: 0.75rem;
+  --bk-font-size-sm: 0.875rem;
+  --bk-font-size-md: 1rem;
+  --bk-font-size-lg: 1.125rem;
+  --bk-font-size-xl: 1.25rem;
+  --bk-font-size-2xl: 1.5rem;
+  --bk-font-size-3xl: 2rem;
+  --bk-line-height-tight: 1.25;
+  --bk-line-height-normal: 1.5;
+  --bk-font-weight-regular: 400;
+  --bk-font-weight-medium: 500;
+  --bk-font-weight-semibold: 600;
+
+  /* Shadows */
+  --bk-shadow-sm: 0 1px 2px rgb(27 36 44 / 0.08);
+  --bk-shadow-md: 0 2px 8px rgb(27 36 44 / 0.1);
+  --bk-shadow-lg: 0 8px 24px rgb(27 36 44 / 0.14);
+}

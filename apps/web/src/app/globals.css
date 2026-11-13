@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+/* Tailwind utilities resolve to the design tokens from @budget-kit/ui (loaded in layout.tsx). */
+@theme inline {
+  --color-bg: var(--bk-color-bg);
+  --color-surface: var(--bk-color-surface);
+  --color-surface-subtle: var(--bk-color-surface-subtle);
+  --color-text: var(--bk-color-text);
+  --color-text-muted: var(--bk-color-text-muted);
+  --color-border: var(--bk-color-border);
+  --color-primary: var(--bk-color-primary);
+  --color-primary-text: var(--bk-color-primary-text);
+  --color-success-text: var(--bk-color-success-text);
+  --color-warning-text: var(--bk-color-warning-text);
+  --color-danger-text: var(--bk-color-danger-text);
+  --font-sans: var(--bk-font-sans);
+  --font-mono: var(--bk-font-mono);
+}
+
+body {
+  background: var(--bk-color-bg);
+  color: var(--bk-color-text);
+  font-family: var(--bk-font-sans);
+  line-height: var(--bk-line-height-normal);
+}
