@@ -1,0 +1,55 @@
+.box {
+  display: flex;
+  align-items: center;
+  gap: var(--bk-space-2);
+  min-height: var(--bk-space-10);
+  padding: 0 var(--bk-space-3);
+  background: var(--bk-color-surface);
+  border: 1px solid var(--bk-color-border-strong);
+  border-radius: var(--bk-radius-md);
+}
+
+[data-invalid='true'] .box {
+  border-color: var(--bk-color-danger);
+}
+
+.box:has(.input:focus-visible) {
+  box-shadow: var(--bk-focus-ring);
+  outline: 2px solid transparent;
+}
+
+.box:has(.input:disabled) {
+  background: var(--bk-color-surface-subtle);
+}
+
+.prefix {
+  color: var(--bk-color-text-muted);
+  font-size: var(--bk-font-size-md);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(var(--bk-space-10) - 2px);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--bk-color-text);
+  font-family: inherit;
+  font-size: var(--bk-font-size-md);
+}
+
+.input::placeholder {
+  color: var(--bk-color-text-muted);
+  opacity: 1;
+}
+
+.input:disabled {
+  color: var(--bk-color-text-muted);
+}
+
+@supports selector(:has(*)) {
+  .input:focus-visible {
+    outline: none;
+  }
+}
