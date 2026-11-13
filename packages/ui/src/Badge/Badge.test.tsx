@@ -87,7 +87,11 @@ describe('Badge', () => {
     });
 
     it('does not let rest props override data-variant', () => {
-      render(<Badge variant="success">Label</Badge>);
+      render(
+        <Badge variant="success" data-variant="danger">
+          Label
+        </Badge>,
+      );
       expect(screen.getByText('Label')).toHaveAttribute('data-variant', 'success');
     });
   });
