@@ -37,13 +37,12 @@ export function Button({
   return (
     <button
       {...rest}
+      {...(loading ? { 'aria-busy': true, 'aria-disabled': true } : undefined)}
       type={type}
       className={className ? `${styles.button} ${className}` : styles.button}
       data-variant={variant}
       data-size={size}
       data-loading={loading ? 'true' : undefined}
-      aria-busy={loading ? true : undefined}
-      aria-disabled={loading ? true : undefined}
       onClick={handleClick}
     >
       <span className={styles.label}>{children}</span>

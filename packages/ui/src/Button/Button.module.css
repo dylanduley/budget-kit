@@ -82,17 +82,13 @@
   cursor: not-allowed;
 }
 
-.button[data-variant='secondary']:disabled {
-  border-color: var(--bk-color-border);
-}
-
 /* Loading keeps the variant colours and is not natively disabled. */
-.button[data-loading='true'] {
+.button[data-loading='true']:not(:disabled) {
   cursor: progress;
 }
 
 .button[data-loading='true'] .label {
-  visibility: hidden;
+  opacity: 0;
 }
 
 .spinner {
