@@ -29,6 +29,8 @@ export function Select({
   placeholder,
   id,
   className,
+  value,
+  defaultValue,
   ...selectProps
 }: SelectProps): ReactElement {
   const generatedId = useId();
@@ -40,6 +42,8 @@ export function Select({
         <select
           {...selectProps}
           id={selectId}
+          value={value}
+          defaultValue={value === undefined && defaultValue === undefined && placeholder ? '' : defaultValue}
           className={styles.select}
           aria-describedby={describedBy(selectId, hint, error)}
           aria-invalid={error ? true : undefined}

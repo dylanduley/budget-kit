@@ -20,7 +20,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const WithPlaceholder: Story = {
-  args: { placeholder: 'Choose a category', defaultValue: '' },
+  args: { placeholder: 'Choose a category' },
 };
 
 export const WithHint: Story = { args: { hint: 'Used to group expenses' } };
