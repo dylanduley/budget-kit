@@ -13,6 +13,7 @@ import { renderWithBudget } from '@/test/renderWithBudget';
 import { renderWithFakeBudget } from '@/test/renderWithFakeBudget';
 
 import { AddExpense } from './AddExpense';
+import { BudgetApp } from '../BudgetApp';
 
 const UNEXPECTED = 'Something went wrong. Your budget was not changed.';
 const AMOUNT_ERROR = 'Enter an amount like 12.50';
@@ -73,9 +74,9 @@ describe('closed and no-categories states', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('no categories: no button, shows "Add a category before adding expenses."', async () => {
+  it('no categories: no button, shows "Add a category in Set up the month below before adding expenses."', async () => {
     renderWithBudget(<AddExpense />, { state: { ...SCENARIO, categories: [], expenses: [] } });
-    expect(await screen.findByText('Add a category before adding expenses.')).toBeInTheDocument();
+    expect(await screen.findByText('Add a category in Set up the month below before adding expenses.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
   });
 });
@@ -847,6 +848,68 @@ describe('action errors', () => {
   });
 });
 
+describe('required semantics and structure', () => {
+  it('Amount (USD) and Category are required; Note and Date are not', async () => {
+    const { user } = renderWithBudget(<AddExpense />, { state: SCENARIO });
+    await screen.findByRole('button', { name: 'Add expense' });
+    await openDialog(user);
+    expect(within(dialog()).getByRole('textbox', { name: 'Amount (USD)' })).toBeRequired();
+    expect(within(dialog()).getByRole('combobox', { name: 'Category' })).toBeRequired();
+    expect(amountInput()).toHaveAttribute('required');
+    expect(categorySelect()).toHaveAttribute('required');
+    expect(within(dialog()).getByRole('textbox', { name: 'Note' })).not.toBeRequired();
+    expect(within(dialog()).getByRole('combobox', { name: 'Date' })).not.toBeRequired();
+    expect(noteInput()).not.toHaveAttribute('required');
+    expect(dateSelect()).not.toHaveAttribute('required');
+  });
+
+  it('the form is noValidate, so an empty required form still shows the app errors and focuses amount', async () => {
+    const { user, actions } = renderWithFakeBudget(<AddExpense />, { state: SCENARIO });
+    await openDialog(user);
+    const form = (noteInput() as HTMLInputElement).form as HTMLFormElement;
+    expect(form.noValidate).toBe(true);
+    await user.click(save());
+    expect(alertWith(AMOUNT_ERROR)).toBeDefined();
+    expect(alertWith(CATEGORY_ERROR)).toBeDefined();
+    expect(amountInput()).toHaveFocus();
+    expect(actions.addExpense).not.toHaveBeenCalled();
+  });
+
+  it('submit handler runs on an invalid required form (requestSubmit is not blocked natively)', async () => {
+    const { user } = renderWithFakeBudget(<AddExpense />, { state: SCENARIO });
+    await openDialog(user);
+    (noteInput() as HTMLInputElement).form?.requestSubmit();
+    await waitFor(() => expect(alertWith(AMOUNT_ERROR)).toBeDefined());
+    expect(alertWith(CATEGORY_ERROR)).toBeDefined();
+  });
+
+  it('the required marker does not change accessible names', async () => {
+    const { user } = renderWithBudget(<AddExpense />, { state: SCENARIO });
+    await screen.findByRole('button', { name: 'Add expense' });
+    await openDialog(user);
+    for (const [role, name] of [
+      ['textbox', 'Amount (USD)'],
+      ['combobox', 'Category'],
+      ['textbox', 'Note'],
+      ['combobox', 'Date'],
+    ] as const) {
+      expect(within(dialog()).getByRole(role, { name, exact: true })).toBeInTheDocument();
+    }
+  });
+
+  it('renders no wrapper: the trigger is a direct child of the render container', async () => {
+    const { container } = renderWithBudget(<AddExpense />, { state: SCENARIO });
+    const button = await screen.findByRole('button', { name: 'Add expense' });
+    expect(button.parentElement).toBe(container);
+  });
+
+  it('mounted in BudgetApp the trigger is a direct child of main', async () => {
+    renderWithBudget(<BudgetApp />, { state: SCENARIO });
+    const button = await screen.findByRole('button', { name: 'Add expense' });
+    expect(button.parentElement).toBe(screen.getByRole('main'));
+  });
+});
+
 describe('accessibility', () => {
   it('axe: closed state', async () => {
     renderWithBudget(<AddExpense />, { state: SCENARIO });
@@ -856,7 +919,7 @@ describe('accessibility', () => {
 
   it('axe: no-categories state', async () => {
     renderWithBudget(<main><AddExpense /></main>, { state: { ...SCENARIO, categories: [], expenses: [] } });
-    await screen.findByText('Add a category before adding expenses.');
+    await screen.findByText('Add a category in Set up the month below before adding expenses.');
     // Wrapped in a landmark by the test: the page shell (task 08) owns <main>.
     await expectNoAxeViolations();
   });
@@ -960,6 +1023,18 @@ describe('source rules', () => {
       expect(between).not.toMatch(/\}\s*catch/);
       expect(text.slice(call.index)).toMatch(/^[\s\S]*?\}\s*catch\s*\(/);
     }
+  });
+
+  it('library components carry only self-*, w-full, justify-self-* or col-span-* classes (self-start allowed on the trigger)', () => {
+    const text = code('AddExpense.tsx');
+    const tags = [...text.matchAll(/<(Button|MoneyField|Select|TextField|Dialog)\b[^>]*?className="([^"]*)"/g)];
+    expect(tags.length).toBeGreaterThan(0);
+    for (const tag of tags) {
+      for (const cls of (tag[2] ?? '').split(/\s+/).filter(Boolean)) {
+        expect(cls).toMatch(/^(self-[\w-]+|w-full|justify-self-[\w-]+|col-span-[\w-]+)$/);
+      }
+    }
+    expect(text).toMatch(/<Button className="self-start"/);
   });
 
   it("'use client' only on AddExpense.tsx, not on the pure expenseForm.ts", () => {
