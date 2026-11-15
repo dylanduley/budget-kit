@@ -1125,10 +1125,11 @@ describe('invalid money text is not saved (app task 26)', () => {
       const result = renderApp({ state: SCENARIO, path: '/plan' });
       await result.user.type(incomeField(), 'x');
       await result.user.click(screen.getByRole('link', { name: 'Overview' }));
-      await act(async () => undefined);
-      expect(screen.getAllByText('$3,200.00').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('$1,505.18').length).toBeGreaterThan(0);
-      expect(screen.queryByText('$0.00 ')).toBeNull();
+      const stat = (label: string): HTMLElement =>
+        screen.getByText(label, { selector: '[data-part="label"]' }).parentElement as HTMLElement;
+      expect(within(stat('Income')).getByText('$3,200.00')).toBeInTheDocument();
+      expect(within(stat('Left to spend')).getByText('$1,505.18')).toBeInTheDocument();
+      expect(within(stat('Spent')).getByText('$1,694.82')).toBeInTheDocument();
     });
   });
 
