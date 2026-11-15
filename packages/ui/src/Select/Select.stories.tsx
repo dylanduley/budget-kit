@@ -23,7 +23,7 @@ const meta = {
           '**Known limitations**',
           '- It is a native `<select>`: keyboard behaviour and the open list are the browser\'s own, and the open list is not styled.',
           '- With a `placeholder` and no `value` or `defaultValue`, the placeholder (a disabled first option) is selected initially.',
-          '- Errors are not announced when they appear. They are linked with `aria-describedby` and `aria-invalid`, so a screen reader reads them when the control is focused.',
+          '- Errors are announced when they appear (`role="alert"`) and are also linked with `aria-describedby` and `aria-invalid`, so they are read again when the control is focused.',
         ].join('\n'),
       },
     },

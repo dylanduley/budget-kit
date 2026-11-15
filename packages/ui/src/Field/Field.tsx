@@ -32,7 +32,7 @@ export function Field({ id, label, hint, error, className, children }: FieldProp
         </p>
       ) : null}
       {error ? (
-        <p id={`${id}-error`} data-part="error" className={styles.error}>
+        <p id={`${id}-error`} data-part="error" role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
