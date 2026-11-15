@@ -1,0 +1,98 @@
+'use client';
+
+import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { Button, Card, Table, type TableColumn } from '@budget-kit/ui';
+
+import { categoryLabel, expensesForMonth, formatMonth, type Expense } from '@/lib/budget';
+import { formatDate, formatMoney } from '@/lib/format';
+import { TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
+
+const GENERIC_ERROR = 'Something went wrong. Your budget was not changed.';
+
+// An expense id to focus, or 'empty' for the empty-state paragraph.
+type FocusTarget = string | 'empty';
+
+export function ExpenseList(): ReactElement | null {
+  const budget = useBudget();
+  const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const emptyRef = useRef<HTMLParagraphElement>(null);
+  const pendingFocus = useRef<FocusTarget | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const expenses = budget.status === 'ready' ? budget.state.expenses : null;
+
+  useEffect(() => {
+    const target = pendingFocus.current;
+    if (target === null) return;
+    pendingFocus.current = null;
+    if (target === 'empty') emptyRef.current?.focus();
+    else buttonRefs.current.get(target)?.focus();
+  }, [expenses]);
+
+  if (budget.status !== 'ready') return null;
+  const { state, actions } = budget;
+  const rows = expensesForMonth(state);
+
+  function handleDelete(id: string): void {
+    const index = rows.findIndex((row) => row.id === id);
+    const next = rows[index + 1] ?? rows[index - 1];
+    try {
+      actions.deleteExpense(id);
+      pendingFocus.current = next === undefined ? 'empty' : next.id;
+      setError(null);
+    } catch (caught) {
+      pendingFocus.current = null;
+      setError(
+        caught instanceof RangeError && caught.message === TOTAL_TOO_LARGE_MESSAGE
+          ? TOTAL_TOO_LARGE_MESSAGE
+          : GENERIC_ERROR,
+      );
+    }
+  }
+
+  const columns: TableColumn<Expense>[] = [
+    { key: 'date', header: 'Date', rowHeader: true, cell: (e) => formatDate(e.date) },
+    { key: 'category', header: 'Category', cell: (e) => categoryLabel(state, e.categoryId) },
+    { key: 'note', header: 'Note', cell: (e) => e.note },
+    { key: 'amount', header: 'Amount', numeric: true, cell: (e) => formatMoney(e.amountCents) },
+    {
+      key: 'actions',
+      header: 'Actions',
+      cell: (e) => (
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-label={`Delete ${formatMoney(e.amountCents)} ${categoryLabel(state, e.categoryId)} expense from ${formatDate(e.date)}`}
+          ref={(node) => {
+            if (node) buttonRefs.current.set(e.id, node);
+            else buttonRefs.current.delete(e.id);
+          }}
+          onClick={() => handleDelete(e.id)}
+        >
+          Delete
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <Card title="Expenses" description="Newest first.">
+      <Table
+        caption={`Expenses in ${formatMonth(state.month)}`}
+        captionHidden
+        columns={columns}
+        rows={rows}
+        getRowKey={(e) => e.id}
+        emptyState={
+          <p ref={emptyRef} tabIndex={-1}>
+            No expenses yet this month.
+          </p>
+        }
+      />
+      {error !== null ? (
+        <p role="alert" data-part="action-error">
+          {error}
+        </p>
+      ) : null}
+    </Card>
+  );
+}
