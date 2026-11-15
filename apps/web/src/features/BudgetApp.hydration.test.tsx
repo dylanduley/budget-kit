@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SCENARIO, SCENARIO_TODAY } from '@/test/fixtures';
 import { createMemoryStorage } from '@/test/memoryStorage';
 import { BudgetProvider } from '@/state/BudgetProvider';
-import { STORAGE_KEY, type StorageLike, loadBudget, serializeBudget } from '@/state/storage';
+import { STORAGE_KEY, type StorageLike, loadBudget, serializeBook } from '@/state/storage';
 import { BudgetApp } from './BudgetApp';
 
 declare global {
@@ -33,7 +33,7 @@ afterEach(async () => {
 });
 
 function seeded(): StorageLike {
-  return createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+  return createMemoryStorage({ [STORAGE_KEY]: serializeBook({ months: [SCENARIO] }) });
 }
 
 function app(storage: StorageLike): ReactElement {
@@ -112,7 +112,7 @@ describe('hydration', () => {
   });
 
   it('does not write while hydrating', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBook({ months: [SCENARIO] }) });
     const ui = app(storage);
     await hydrate(ui, ui);
     expect(storage.setItemCalls).toBe(0);
@@ -153,7 +153,7 @@ describe('the hydration harness can fail', () => {
   function BrokenProvider({ storage }: { storage: StorageLike | null }): ReactElement {
     const [loaded] = useState(() => {
       const result = serverPass ? { status: 'empty' as const } : loadBudget(storage);
-      return result.status === 'loaded' ? result.state : null;
+      return result.status === 'loaded' ? (result.book.months[0] ?? null) : null;
     });
     const [, force] = useState(0);
     useEffect(() => force(1), []);

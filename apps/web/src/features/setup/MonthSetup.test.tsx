@@ -16,6 +16,13 @@ import { MonthSetup } from './MonthSetup';
 
 const GENERIC = 'Something went wrong. Your budget was not changed.';
 const NAMES = ['Rent', 'Groceries', 'Transport', 'Utilities', 'Eating out'];
+// A first-run state with five unplanned categories (the app itself now starts with none).
+const FIVE: BudgetState = {
+  month: '2026-11',
+  incomeCents: 0,
+  categories: NAMES.map((name) => ({ id: `suggested-${name.toLowerCase().replace(' ', '-')}`, name, plannedCents: 0 })),
+  expenses: [],
+};
 
 const tooLarge = (): never => {
   throw new RangeError(TOTAL_TOO_LARGE_MESSAGE);
@@ -101,7 +108,7 @@ function bigState(): BudgetState {
 
 describe('first run and labels', () => {
   it('first run: income empty, five suggested rows in order, planned fields empty, headings', () => {
-    renderWithBudget(<MonthSetup />);
+    renderWithBudget(<MonthSetup />, { state: FIVE });
     expect(screen.getByRole('heading', { level: 2, name: 'Set up the month' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Categories' })).toBeInTheDocument();
     expect(
@@ -120,7 +127,7 @@ describe('first run and labels', () => {
   });
 
   it('labels state the unit: every money field ends in (USD), text fields do not', () => {
-    renderWithBudget(<MonthSetup />);
+    renderWithBudget(<MonthSetup />, { state: FIVE });
     const textboxes = screen.getAllByRole('textbox') as HTMLInputElement[];
     expect(textboxes).toHaveLength(13);
     const money = textboxes.filter((input) => input.getAttribute('inputmode') === 'decimal');
@@ -147,7 +154,7 @@ describe('first run and labels', () => {
   });
 
   it('structure: a region, a list and a named form with a submit button', () => {
-    renderWithBudget(<MonthSetup />);
+    renderWithBudget(<MonthSetup />, { state: FIVE });
     expect(screen.getByRole('region', { name: 'Set up the month' })).toBeInTheDocument();
     const list = screen.getByRole('list');
     expect(list).toHaveAttribute('role', 'list');
@@ -217,7 +224,7 @@ describe('income and planned amounts', () => {
   });
 
   it('the draft is never re-synced from state while typing: 12. stays 12.', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(incomeField(), '12.');
     expect(incomeField()).toHaveValue('12.');
     await result.user.type(plannedField(1), '7.');
@@ -262,7 +269,7 @@ describe('income and planned amounts', () => {
   });
 
   it('planned amounts typed for all five store the exact cents', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     const amounts = ['1500', '400', '120', '150', '100'];
     for (let i = 0; i < 5; i += 1) await result.user.type(plannedField(i + 1), amounts[i] ?? '');
     expect(stored(result).categories.map((c) => c.plannedCents)).toEqual([150000, 40000, 12000, 15000, 10000]);
@@ -428,7 +435,7 @@ describe('rename on blur', () => {
 
 describe('add a category', () => {
   it('Pets / 25 adds a sixth row with id-1, clears both fields and focuses New category name', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), 'Pets');
     await result.user.type(newPlanned(), '25');
     await result.user.click(addButton());
@@ -445,7 +452,7 @@ describe('add a category', () => {
   });
 
   it('pressing Enter in New category planned submits; the name is trimmed by the provider', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), ' Pets ');
     await result.user.type(newPlanned(), '25{Enter}');
     expect(stored(result).categories).toHaveLength(6);
@@ -454,18 +461,18 @@ describe('add a category', () => {
   });
 
   it('both fields empty: both errors, focus on the name, nothing added', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.click(addButton());
     expect(errorText(newName())).toBe('Enter a category name');
     expect(errorText(newPlanned())).toBe('Enter an amount like 250.00');
     expect(newName()).toHaveFocus();
     expect(screen.getAllByRole('listitem')).toHaveLength(5);
-    expect(result.readStored()).toBeNull();
+    expect(result.readStored()).toEqual(FIVE);
     expect(result.storage.setItemCalls).toBe(0);
   });
 
   it('name Pets with planned abc adds nothing and focuses the planned field', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), 'Pets');
     await result.user.type(newPlanned(), 'abc');
     await result.user.click(addButton());
@@ -473,44 +480,44 @@ describe('add a category', () => {
     expect(newPlanned()).toHaveFocus();
     expect(newPlanned()).toHaveAttribute('aria-invalid', 'true');
     expect(errorOf(newPlanned())).not.toBeNull();
-    expect(result.readStored()).toBeNull();
+    expect(result.readStored()).toEqual(FIVE);
     expect(newName()).toHaveValue('Pets');
   });
 
   it('name Pets with an empty planned shows Enter an amount like 250.00 on the planned field only and focuses it', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), 'Pets');
     await result.user.click(addButton());
     expect(errorOf(newName())).toBeNull();
     expect(errorText(newPlanned())).toBe('Enter an amount like 250.00');
     expect(newPlanned()).toHaveFocus();
-    expect(result.readStored()).toBeNull();
+    expect(result.readStored()).toEqual(FIVE);
   });
 
   it('a name of only spaces counts as empty', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), '   ');
     await result.user.type(newPlanned(), '5');
     await result.user.click(addButton());
     expect(errorText(newName())).toBe('Enter a category name');
     expect(newName()).toHaveFocus();
-    expect(result.readStored()).toBeNull();
+    expect(result.readStored()).toEqual(FIVE);
     expect(screen.getAllByRole('listitem')).toHaveLength(5);
   });
 
   it('a duplicate name (trimmed, case-insensitive) shows the duplicate error and adds nothing', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), ' groceries ');
     await result.user.type(newPlanned(), '5');
     await result.user.click(addButton());
     expect(errorText(newName())).toBe('You already have a category called Groceries');
     expect(newName()).toHaveFocus();
-    expect(result.readStored()).toBeNull();
+    expect(result.readStored()).toEqual(FIVE);
     expect(screen.getAllByRole('listitem')).toHaveLength(5);
   });
 
   it('planned 0 is valid and adds a category with 0 cents', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.type(newName(), 'Gifts');
     await result.user.type(newPlanned(), '0');
     await result.user.click(addButton());
@@ -518,7 +525,7 @@ describe('add a category', () => {
   });
 
   it('editing a field clears its submit error', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     await result.user.click(addButton());
     await result.user.type(newName(), 'P');
     expect(errorOf(newName())).toBeNull();
@@ -550,7 +557,7 @@ describe('add a category', () => {
   });
 
   it('keyboard only: fill the form with Tab and submit with Enter on the button', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     newName().focus();
     await result.user.keyboard('Pets');
     await result.user.tab();
@@ -896,53 +903,52 @@ describe('real overflow through the provider', () => {
   }, 30000);
 });
 
-describe('remount on reset', () => {
-  function ResetProbe(): ReactElement | null {
+describe('remount on delete all data', () => {
+  function DeleteProbe(): ReactElement | null {
     const budget = useBudget();
     if (budget.status !== 'ready') return null;
-    return <Button onClick={() => budget.actions.resetMonth()}>Reset now</Button>;
+    return <Button onClick={() => budget.actions.deleteAllData()}>Delete now</Button>;
   }
   function Harness(): ReactElement | null {
     const budget = useBudget();
     if (budget.status !== 'ready') return null;
     return (
       <>
-        <MonthSetup key={budget.generation} />
-        <ResetProbe />
+        <MonthSetup key={`${budget.viewedMonth}:${budget.generation}`} />
+        <DeleteProbe />
       </>
     );
   }
 
-  it('after resetMonth the income field is empty and the five suggested names are back', async () => {
-    const result = renderWithBudget(<Harness />);
+  it('after deleteAllData the income field is empty and no categories remain', async () => {
+    const result = renderWithBudget(<Harness />, { state: FIVE });
     await result.user.type(incomeField(), '500');
     await result.user.clear(nameField(1));
     await result.user.type(nameField(1), 'Mortgage');
     await result.user.tab();
     await result.user.click(screen.getByRole('button', { name: 'Remove Groceries' }));
     expect(incomeField()).toHaveValue('500.00');
-    await result.user.click(screen.getByRole('button', { name: 'Reset now' }));
+    await result.user.click(screen.getByRole('button', { name: 'Delete now' }));
     expect(incomeField()).toHaveValue('');
-    expect([1, 2, 3, 4, 5].map((n) => nameField(n).value)).toEqual(NAMES);
-    expect(plannedField(1)).toHaveValue('');
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
-  it('BudgetApp mounts MonthSetup with key={generation}: a reset remounts the screen', async () => {
-    function AppWithReset(): ReactElement {
+  it('BudgetApp mounts MonthSetup with a key that changes on delete: the screen remounts', async () => {
+    function AppWithDelete(): ReactElement {
       return (
         <>
           <BudgetApp />
-          <ResetProbe />
+          <DeleteProbe />
         </>
       );
     }
-    const result = renderWithBudget(<AppWithReset />);
+    const result = renderWithBudget(<AppWithDelete />, { state: FIVE });
     await result.user.type(incomeField(), '500');
     await result.user.type(plannedField(1), '12');
     expect(incomeField()).toHaveValue('500.00');
-    await result.user.click(screen.getByRole('button', { name: 'Reset now' }));
+    await result.user.click(screen.getByRole('button', { name: 'Delete now' }));
     expect(incomeField()).toHaveValue('');
-    expect(plannedField(1)).toHaveValue('');
+    expect(screen.queryByRole('textbox', { name: 'Category 1 planned (USD)' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Set up the month' })).toBeInTheDocument();
   });
 });
@@ -976,7 +982,7 @@ describe('keyboard and DOM order', () => {
 
 describe('library-only alerts', () => {
   it('no role=status, aria-live or stray alert at rest, with field errors, or with action errors', async () => {
-    const result = renderWithBudget(<MonthSetup />);
+    const result = renderWithBudget(<MonthSetup />, { state: FIVE });
     const noLive = (): void => {
       expect(document.querySelectorAll('[role="status"], [aria-live]')).toHaveLength(0);
     };
@@ -1139,7 +1145,7 @@ describe('source rules', () => {
   it('BudgetApp adds only the import and the keyed MonthSetup line', () => {
     const app = read('features/BudgetApp.tsx');
     expect(app).toContain("import { MonthSetup } from '@/features/setup/MonthSetup';");
-    expect(app).toContain('<MonthSetup key={budget.generation} />');
+    expect(app).toContain('<MonthSetup key={`${budget.viewedMonth}:${budget.generation}`} />');
     expect((app.match(/<MonthSetup\b/g) ?? []).length).toBe(1);
     expect((app.match(/^import .*MonthSetup/gm) ?? []).length).toBe(1);
   });

@@ -90,7 +90,15 @@ function withPlan(state: BudgetState, categoryId: string, plannedCents: number):
   return updateCategory(state, categoryId, { plannedCents });
 }
 
-const FIRST_RUN = createInitialState('2026-11');
+// The five categories the app once started with, so the first-run rows stay covered.
+const FIRST_RUN: BudgetState = {
+  ...createInitialState('2026-11'),
+  categories: ['Rent', 'Groceries', 'Transport', 'Utilities', 'Eating out'].map((name) => ({
+    id: `suggested-${name.toLowerCase().replace(' ', '-')}`,
+    name,
+    plannedCents: 0,
+  })),
+};
 
 describe('SCENARIO Stats', () => {
   it('shows the five Stats in order with the exact labels and values', async () => {

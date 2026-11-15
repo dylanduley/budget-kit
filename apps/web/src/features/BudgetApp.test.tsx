@@ -39,9 +39,9 @@ describe('ready skeleton', () => {
     expect(screen.queryByText('Loading your budget…')).not.toBeInTheDocument();
   });
 
-  it('formats the month of the stored state, not of the clock', async () => {
+  it('shows the clock month, started from the stored month', async () => {
     renderWithBudget(<BudgetApp />, { state: SCENARIO, today: '2027-02-03' });
-    expect(await screen.findByText('Budget for November 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Budget for February 2027')).toBeInTheDocument();
   });
 
   it('shows the clock month for a fresh budget', async () => {

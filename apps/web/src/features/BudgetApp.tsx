@@ -5,8 +5,6 @@ import type { ReactElement } from 'react';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { AddExpense } from '@/features/expenses/AddExpense';
 import { ExpenseList } from '@/features/expenses/ExpenseList';
-import { MonthNotice } from '@/features/reset/MonthNotice';
-import { ResetMonth } from '@/features/reset/ResetMonth';
 import { MonthSetup } from '@/features/setup/MonthSetup';
 import { formatMonth } from '@/lib/budget';
 import { useBudget } from '@/state/BudgetProvider';
@@ -45,12 +43,10 @@ export function BudgetApp(): ReactElement {
         ) : null}
         {budget.loadStatus === 'unavailable' ? <p>{UNAVAILABLE_MESSAGE}</p> : null}
       </div>
-      <MonthNotice />
       <Dashboard />
       <AddExpense />
       <ExpenseList />
-      <MonthSetup key={budget.generation} />
-      <ResetMonth />
+      <MonthSetup key={`${budget.viewedMonth}:${budget.generation}`} />
     </main>
   );
 }

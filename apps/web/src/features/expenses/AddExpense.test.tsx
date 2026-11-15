@@ -145,7 +145,7 @@ describe('opening the dialog', () => {
   });
 
   it('a 2026-10 budget with today 2026-11-14 lists 31 October days and selects Oct 1, 2026', async () => {
-    const { user } = renderWithBudget(<AddExpense />, {
+    const { user } = renderWithFakeBudget(<AddExpense />, {
       state: { ...SCENARIO, month: '2026-10', expenses: [] },
       today: '2026-11-14',
     });
