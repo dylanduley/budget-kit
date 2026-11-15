@@ -12,6 +12,7 @@
   right: var(--bk-space-4);
   width: var(--bk-space-2);
   height: var(--bk-space-2);
+  box-sizing: content-box;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: translateY(-75%) rotate(45deg);
@@ -21,7 +22,7 @@
 .select {
   flex: 1;
   min-width: 0;
-  box-sizing: content-box;
+  box-sizing: border-box;
   min-height: var(--bk-space-10);
   margin: 0;
   padding: 0 var(--bk-space-10) 0 var(--bk-space-3);
