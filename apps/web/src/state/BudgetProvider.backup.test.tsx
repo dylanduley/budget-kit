@@ -70,10 +70,10 @@ function logStorage(initial: Record<string, string> = {}): LogStorage {
   return s;
 }
 
-async function mount(storage: StorageLike | null, strict = false) {
+async function mount(storage: StorageLike | null, strict = false, today = '2026-11-14') {
   probe.latest = null;
   const tree = (
-    <BudgetProvider storage={storage} getToday={() => '2026-11-14'}>
+    <BudgetProvider storage={storage} getToday={() => today}>
       <Probe />
     </BudgetProvider>
   );
@@ -98,18 +98,31 @@ describe('nothing on load', () => {
     ['not json', 'not json'],
     ['an unsupported version', V3],
   ] as const) {
-    it(`${name}: no writes, no backup key, even after viewMonth`, async () => {
+    it(`${name}: no writes, no backup key`, async () => {
       const storage = logStorage({ [STORAGE_KEY]: raw });
       await mount(storage);
       await new Promise((r) => setTimeout(r, 20));
       expect(storage.sets()).toHaveLength(0);
       expect(storage.dump()).toEqual({ [STORAGE_KEY]: raw });
-      const other = ready().months.find((m) => m !== ready().viewedMonth);
-      if (other !== undefined) act(() => ready().viewMonth(other));
       expect(storage.calls).toHaveLength(0);
       expect(storage.dump()[BACKUP_KEY]).toBeUndefined();
     });
   }
+
+  it('version 1: viewing another month writes nothing, and the first real change afterwards backs up the original', async () => {
+    const storage = logStorage({ [STORAGE_KEY]: V1 });
+    await mount(storage, false, '2026-12-01');
+    const other = ready().months.find((m) => m !== ready().viewedMonth);
+    expect(other).toBeDefined();
+    act(() => ready().viewMonth(other as string));
+    expect(ready().viewedMonth).toBe(other);
+    expect(storage.calls).toHaveLength(0);
+    expect(storage.dump()).toEqual({ [STORAGE_KEY]: V1 });
+    act(() => ready().actions.setIncome(77));
+    expect(storage.sets(BACKUP_KEY)).toHaveLength(1);
+    expect(storage.dump()[BACKUP_KEY] === V1).toBe(true);
+    expect(JSON.parse(storage.dump()[STORAGE_KEY]!).version).toBe(2);
+  });
 
   it('does not attempt a backup when storage is unavailable (null or throwing reads)', async () => {
     const nullView = await mount(null);
@@ -259,7 +272,7 @@ describe('backup fails, save goes on', () => {
     expect(() => act(() => ready().actions.setIncome(500))).not.toThrow();
     expect(storedState(storage).incomeCents).toBe(500);
     expect(storage.dump()[BACKUP_KEY]).toBeUndefined();
-    expect(screen.getByTestId('out').textContent).toBe(before?.replace(String(SCENARIO.incomeCents), '500').replace('false', 'false'));
+    expect(screen.getByTestId('out').textContent).toBe(before?.replace(String(SCENARIO.incomeCents), '500'));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(err).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
@@ -312,6 +325,49 @@ describe('failed first save', () => {
     expect(storedState(storage).incomeCents).toBe(2);
     act(() => ready().actions.setIncome(3));
     expect(storage.sets(BACKUP_KEY)).toHaveLength(1);
+  });
+});
+
+describe('every save fails after the backup is written', () => {
+  it('removes the backup, leaves the original V1 untouched, and the next change after recovery backs up the original', async () => {
+    const storage = logStorage({ [STORAGE_KEY]: V1 });
+    let down = true;
+    storage.failSet = (key) => key === STORAGE_KEY && down;
+    await mount(storage);
+    act(() => ready().actions.setIncome(1));
+    expect(storage.calls).toEqual([
+      { op: 'set', key: BACKUP_KEY },
+      { op: 'set', key: STORAGE_KEY },
+      { op: 'remove', key: BACKUP_KEY },
+      { op: 'set', key: STORAGE_KEY },
+    ]);
+    expect(storage.dump()).toEqual({ [STORAGE_KEY]: V1 });
+    expect(storage.dump()[STORAGE_KEY] === V1).toBe(true);
+    down = false;
+    storage.calls.length = 0;
+    act(() => ready().actions.setIncome(2));
+    expect(storage.calls).toEqual([
+      { op: 'set', key: BACKUP_KEY },
+      { op: 'set', key: STORAGE_KEY },
+    ]);
+    expect(storage.dump()[BACKUP_KEY] === V1).toBe(true);
+    expect(JSON.parse(storage.dump()[STORAGE_KEY]!).version).toBe(2);
+    expect(storedState(storage).incomeCents).toBe(2);
+  });
+
+  it('when removeItem also throws, both copies stay and nothing throws or is shown', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = logStorage({ [STORAGE_KEY]: V1 });
+    storage.failSet = (key) => key === STORAGE_KEY;
+    storage.failRemove = true;
+    await mount(storage);
+    expect(() => act(() => ready().actions.setIncome(1))).not.toThrow();
+    expect(storage.dump()[STORAGE_KEY] === V1).toBe(true);
+    expect(storage.dump()[BACKUP_KEY] === V1).toBe(true);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(err).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 });
 
