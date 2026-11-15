@@ -74,6 +74,7 @@ function ExpenseDialogForm({ formId, state, today, actions, amountRef, onDone }:
     <form id={formId} noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
       <MoneyField
         label="Amount (USD)"
+        required
         ref={amountRef}
         value={amountCents}
         error={errors.amount ?? totalError ?? undefined}
@@ -84,6 +85,7 @@ function ExpenseDialogForm({ formId, state, today, actions, amountRef, onDone }:
       />
       <Select
         label="Category"
+        required
         placeholder="Choose a category"
         ref={categoryRef}
         value={categoryId}
@@ -136,13 +138,15 @@ export function AddExpense(): ReactElement | null {
   if (budget.status !== 'ready') return null;
   const { state, today, actions } = budget;
 
-  if (state.categories.length === 0) return <p>Add a category before adding expenses.</p>;
+  if (state.categories.length === 0) return <p>Add a category in Set up the month below before adding expenses.</p>;
 
   const close = (): void => setOpen(false);
 
   return (
-    <div>
-      <Button onClick={() => setOpen(true)}>Add expense</Button>
+    <>
+      <Button className="self-start" onClick={() => setOpen(true)}>
+        Add expense
+      </Button>
       <Dialog
         open={open}
         onClose={close}
@@ -168,6 +172,6 @@ export function AddExpense(): ReactElement | null {
           onDone={close}
         />
       </Dialog>
-    </div>
+    </>
   );
 }
