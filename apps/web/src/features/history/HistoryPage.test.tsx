@@ -385,6 +385,18 @@ describe("Delete all data: confirming", () => {
     expect(rowTexts()).toEqual([EMPTY_ROW]);
   });
 
+  it("focus stays on the confirmation paragraph after further renders flush (a late Dialog focus return cannot steal it)", async () => {
+    const { user } = renderApp({ book: BOOK, path: "/history" });
+    await confirm(user);
+    const confirmation = screen.getByText(CONFIRMATION);
+    expect(document.activeElement).toBe(confirmation);
+    await act(async () => undefined);
+    await act(async () => undefined);
+    expect(document.activeElement).toBe(confirmation);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.body.querySelector("[data-bk-dialog-root]")).toBeNull();
+  });
+
   it("the confirmation is plain (not an alert or status) and stays until leaving the page", async () => {
     const { user } = renderApp({ book: BOOK, path: "/history" });
     await confirm(user);
