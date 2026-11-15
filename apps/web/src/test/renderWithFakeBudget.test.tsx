@@ -1,6 +1,6 @@
 import { Button } from '@budget-kit/ui';
 import { render, screen } from '@testing-library/react';
-import type { ReactElement } from 'react';
+import { type ReactElement, useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BudgetState } from '@/lib/budget';
@@ -15,7 +15,9 @@ const seen: { value: BudgetContextValue | null } = { value: null };
 
 function Probe(): ReactElement {
   const budget = useBudget();
-  seen.value = budget;
+  useEffect(() => {
+    seen.value = budget;
+  });
   return <p>{budget.status}</p>;
 }
 
