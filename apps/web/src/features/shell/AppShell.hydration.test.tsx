@@ -25,7 +25,7 @@ const CASES = [
   ['/', 'Overview', OverviewPage, 'Summary'],
   ['/spending', 'Spending', SpendingPage, 'Expenses in November 2026'],
   ['/plan', 'Plan', PlanPage, 'Monthly income (USD)'],
-  ['/history', 'History', HistoryPage, 'Start over'],
+  ['/history', 'History', HistoryPage, 'Delete every month saved in this browser and begin again.'],
 ] as const;
 
 let previousActFlag: boolean | undefined;
