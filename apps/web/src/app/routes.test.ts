@@ -131,3 +131,57 @@ describe('routes: static rendering', () => {
     expect(code).not.toMatch(/\bparams\b|async function/);
   });
 });
+
+describe('boundaries: client/server and pure modules (source)', () => {
+  const nonTestSources = walk(SRC)
+    .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+    .map((f) => f.slice(SRC.length + 1));
+  const code = (file: string): string => stripComments(read(file));
+  const PURE = [
+    'state/storage.ts',
+    'state/budgetReducer.ts',
+    ...readdirSync(join(SRC, 'lib'))
+      .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f))
+      .map((f) => `lib/${f}`),
+  ];
+
+  it('finds the sources to check, including every lib module', () => {
+    expect(nonTestSources.length).toBeGreaterThan(20);
+    for (const file of ['lib/clock.ts', 'lib/months.ts', 'lib/budget.ts', 'lib/format.ts']) {
+      expect(PURE).toContain(file);
+    }
+  });
+
+  it('state/BudgetProvider.tsx starts with use client', () => {
+    expect(firstStatement(read('state/BudgetProvider.tsx'))).toMatch(/^['"]use client['"];?$/);
+  });
+
+  it.each(PURE)('%s has no directive and does not import react or react-dom', (file) => {
+    const source = code(file);
+    expect(source).not.toMatch(/['"]use client['"]/);
+    expect(source).not.toMatch(/(from|import)\s*\(?\s*['"]react(-dom)?(\/[^'"]*)?['"]/);
+    expect(source).not.toMatch(/require\(\s*['"]react/);
+    expect(source).not.toMatch(/import\(\s*['"]react/);
+  });
+
+  it.each(PURE)('%s does not touch window, document, localStorage or crypto', (file) => {
+    expect(code(file)).not.toMatch(/\b(window|document|localStorage|crypto)\b/);
+  });
+
+  it('crypto. appears only in state/BudgetProvider.tsx', () => {
+    const offenders = nonTestSources.filter((f) => /\bcrypto\./.test(code(f)));
+    expect(offenders.filter((f) => f !== 'state/BudgetProvider.tsx')).toEqual([]);
+  });
+
+  it('Date.now( appears only in lib/clock.ts', () => {
+    const offenders = nonTestSources.filter((f) => /\bDate\.now\(/.test(code(f)));
+    // clock.ts is allowed to, not required to (it reads the time with new Date()).
+    expect(offenders.filter((f) => f !== 'lib/clock.ts')).toEqual([]);
+  });
+
+  it('the pattern checks can fail (samples)', () => {
+    expect(stripComments("import { useState } from 'react';")).toMatch(/(from|import)\s*\(?\s*['"]react(-dom)?(\/[^'"]*)?['"]/);
+    expect(stripComments('const t = Date.now();')).toMatch(/\bDate\.now\(/);
+    expect(stripComments('// Date.now( in a comment\nconst a = 1;')).not.toMatch(/\bDate\.now\(/);
+  });
+});

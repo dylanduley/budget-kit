@@ -1,7 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { HistoryPage } from '@/features/history/HistoryPage';
+import { OverviewPage } from '@/features/overview/OverviewPage';
+import { PlanPage } from '@/features/plan/PlanPage';
+import { SpendingPage } from '@/features/spending/SpendingPage';
 import { BudgetProvider } from '@/state/BudgetProvider';
 import { STORAGE_KEY } from '@/state/storage';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -16,6 +21,19 @@ import { NAV_ITEMS } from './navItems';
 afterEach(() => {
   document.body.innerHTML = '';
 });
+
+function pageFor(path: string): ReactElement {
+  switch (path) {
+    case '/spending':
+      return <SpendingPage />;
+    case '/plan':
+      return <PlanPage />;
+    case '/history':
+      return <HistoryPage />;
+    default:
+      return <OverviewPage />;
+  }
+}
 
 const PATHS = [
   ['/', 'Overview'],
@@ -100,9 +118,14 @@ describe('shell structure on every route', () => {
     for (const inner of document.querySelectorAll('main header')) expect(inner.closest('section')).not.toBeNull();
   });
 
-  it('History shows its placeholder and Plan shows the income field', () => {
+  it('History shows its current placeholder line', () => {
     renderApp({ state: SCENARIO, path: '/history' });
     expect(screen.getByText('Your months will be listed here.')).toBeInTheDocument();
+  });
+
+  it('Plan shows the income field of the temporary setup form', () => {
+    renderApp({ state: SCENARIO, path: '/plan' });
+    expect(screen.getByRole('textbox', { name: 'Monthly income (USD)' })).toBeInTheDocument();
   });
 
   it('Tab order is the four links, then Add expense', async () => {
@@ -324,13 +347,12 @@ describe('accessibility (axe)', () => {
     setTestPathname(path);
     const html = renderToString(
       <BudgetProvider storage={createMemoryStorage()} getToday={() => '2026-11-14'}>
-        <AppShell>
-          <h1>Loading page</h1>
-          <p>Loading your budget…</p>
-        </AppShell>
+        <AppShell>{pageFor(path)}</AppShell>
       </BudgetProvider>,
     );
     document.body.innerHTML = html;
+    expect(document.body).toHaveTextContent('Loading your budget…');
+    expect(document.querySelectorAll('h1')).toHaveLength(1);
     await expectNoAxeViolations();
   });
 

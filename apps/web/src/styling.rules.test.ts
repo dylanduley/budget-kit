@@ -175,6 +175,7 @@ describe('no native controls, style props or style tooling', () => {
     ['<table', /<table/],
     ['<dialog', /<dialog/],
     ['<a', /<a[\s>]/],
+    ['createElement of a (React.createElement(\'a\'))', /createElement\(\s*['"]a['"]/],
     ['style=', /style=/],
     ['styled(', /styled\(/],
     ['.module.css', /\.module\.css/],
@@ -183,9 +184,18 @@ describe('no native controls, style props or style tooling', () => {
 
   it.each(FORBIDDEN)('no match for %s in any non-test file under src', (_label, pattern) => {
     for (const file of allFiles.filter((f) => !isTest(f) && /\.(tsx?|css|mdx?)$/.test(f))) {
+      // The Next.js link mock in src/test renders an anchor on purpose.
+      if (rel(file).startsWith('test/') && pattern.source.startsWith('createElement')) continue;
       const code = read(file);
       expect(pattern.test(code), `${rel(file)} contains ${pattern}`).toBe(false);
     }
+  });
+
+  it('the createElement rule sees both spellings', () => {
+    const rule = FORBIDDEN.find(([label]) => label.startsWith('createElement'))?.[1];
+    expect(rule?.test("createElement('a', { href: '/' })")).toBe(true);
+    expect(rule?.test('React.createElement( "a", null)')).toBe(true);
+    expect(rule?.test("createElement('abbr')")).toBe(false);
   });
 
   it('the rules do see markup (a sample with a native button matches)', () => {

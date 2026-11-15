@@ -76,9 +76,10 @@ describe('Overview page: seeded SCENARIO', () => {
     expect(within(card).getByText('$0.00 left')).toBeInTheDocument();
   });
 
-  it('has a single h1 and no month switcher or welcome yet', () => {
+  it('has a single h1 and shows no welcome line', () => {
     renderApp({ state: SCENARIO, path: '/' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();
   });
 
   it('overspent income: Left to spend is negative with the more-than-income text, not shown by colour alone', () => {
