@@ -193,3 +193,43 @@ describe('stories', () => {
     expect(stories.default.title).toBe('Components/TextField');
   });
 });
+
+describe('TextField: error is announced (role="alert")', () => {
+  it('with an error, the alert has exactly the error text and is the element aria-describedby points at', () => {
+    render(<TextField label="Name" id="n" error="Required" />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/^Required$/);
+    expect(alert.children).toHaveLength(0);
+    expect(alert).toHaveAttribute('id', 'n-error');
+    expect(screen.getByLabelText('Name')).toHaveAttribute('aria-describedby', 'n-error');
+  });
+
+  it.each([undefined, ''])('with error=%j there is no alert and no aria-invalid or aria-describedby', (error) => {
+    render(<TextField label="Name" error={error} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('the alert appears when an error is added and disappears when it is removed', () => {
+    const { rerender } = render(<TextField label="Name" />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    rerender(<TextField label="Name" error="Bad" />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Bad$/);
+    rerender(<TextField label="Name" error="" />);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('the hint has no role, and with hint and error there is exactly one alert', () => {
+    const { container } = render(<TextField label="Name" id="n" hint="Help" error="Bad" />);
+    expect(container.querySelector('#n-hint')).not.toHaveAttribute('role');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveAttribute('id', 'n-error');
+    expect(screen.getByLabelText('Name')).toHaveAttribute('aria-describedby', 'n-error n-hint');
+  });
+
+  it('with only a hint there is no alert', () => {
+    render(<TextField label="Name" hint="Help" />);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});

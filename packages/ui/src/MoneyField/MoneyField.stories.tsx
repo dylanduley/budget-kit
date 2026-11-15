@@ -30,7 +30,7 @@ const meta = {
           '- On iOS the decimal keypad has no minus key, so negative amounts are hard to enter when `allowNegative` is on.',
           '- A `value` that is not a safe integer (a float or NaN) throws a `RangeError` while rendering.',
           '- The largest amount is 999,999,999,999.99.',
-          '- Errors are not announced when they appear. They are linked with `aria-describedby` and `aria-invalid`, so a screen reader reads them when the user returns to the field.',
+          '- Errors are announced when they appear (`role="alert"`) and are also linked with `aria-describedby` and `aria-invalid`, so they are read again when the control is focused.',
         ].join('\n'),
       },
     },

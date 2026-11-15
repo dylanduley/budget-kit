@@ -337,3 +337,44 @@ describe('stories', () => {
     expect(stories.default.title).toBe('Components/Select');
   });
 });
+
+describe('Select: error is announced (role="alert")', () => {
+  it('with error="Pick one", the alert has exactly that text and is the element aria-describedby points at', () => {
+    render(<Select label="Category" id="c" options={options} error="Pick one" />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/^Pick one$/);
+    expect(alert.children).toHaveLength(0);
+    expect(alert).toHaveAttribute('id', 'c-error');
+    expect(screen.getByLabelText('Category')).toHaveAttribute('aria-describedby', 'c-error');
+  });
+
+  it.each([undefined, ''])('with error=%j there is no alert and no aria-invalid or aria-describedby', (error) => {
+    render(<Select label="Category" options={options} error={error} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText('Category')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByLabelText('Category')).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('the alert appears when an error is added and disappears when it is removed', () => {
+    const { rerender } = render(<Select label="Category" options={options} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    rerender(<Select label="Category" options={options} error="Pick one" />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Pick one$/);
+    rerender(<Select label="Category" options={options} error="" />);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('the hint has no role, and with hint and error there is exactly one alert', () => {
+    const { container } = render(
+      <Select label="Category" id="c" options={options} hint="Help" error="Bad" />,
+    );
+    expect(container.querySelector('#c-hint')).not.toHaveAttribute('role');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveAttribute('id', 'c-error');
+  });
+
+  it('with only a hint there is no alert', () => {
+    render(<Select label="Category" options={options} hint="Help" />);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});

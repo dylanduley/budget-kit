@@ -14,7 +14,7 @@ const meta = {
           'The label is linked to the input, the hint and error are linked with `aria-describedby`, and the input is marked `aria-invalid` while an error shows. Keyboard behaviour is the browser\'s native text input behaviour.',
           '',
           '**Known limitations**',
-          '- Errors are not announced when they appear. They are linked with `aria-describedby` and `aria-invalid`, so a screen reader reads them when the control is focused.',
+          '- Errors are announced when they appear (`role="alert"`) and are also linked with `aria-describedby` and `aria-invalid`, so they are read again when the control is focused.',
         ].join('\n'),
       },
     },
