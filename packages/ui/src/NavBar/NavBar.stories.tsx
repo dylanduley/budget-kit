@@ -41,6 +41,9 @@ export const CurrentLast: Story = { args: { currentHref: '/history' } };
 export const NoCurrent: Story = { args: { currentHref: null } };
 
 export const Narrow: Story = {
+  parameters: {
+    docs: { description: { story: 'The links wrap onto a second line in a 320px container. axe in jsdom cannot test wrapping, so check it by eye at 320px.' } },
+  },
   render: (args) => (
     <div style={{ width: '320px' }}>
       <NavBar {...args} />
@@ -49,6 +52,9 @@ export const Narrow: Story = {
 };
 
 export const LongLabel: Story = {
+  parameters: {
+    docs: { description: { story: 'A 60-character unbroken label wraps inside its item. %s' } },
+  },
   args: {
     items: [
       { href: '/', label: 'Overview' },
