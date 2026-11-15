@@ -56,6 +56,7 @@ const MUST_WRAP: Array<[file: string, selectors: string[]]> = [
   ['NavBar/NavBar.module.css', ['.link']],
   ['ProgressBar/ProgressBar.module.css', ['.label', '.status']],
   ['Stat/Stat.module.css', ['.stat']],
+  ['StatusMessage/StatusMessage.module.css', ['.message']],
   ['TextField/TextField.module.css', ['.prefix']],
 ];
 
