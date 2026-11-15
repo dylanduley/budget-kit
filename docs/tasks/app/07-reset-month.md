@@ -12,6 +12,7 @@ A `Reset month` button that asks for confirmation in a Dialog and, only after co
 - **Client boundary**: a file starts with `'use client';` only if it uses state, effects, refs, context or event handlers. `page.tsx` and `layout.tsx` stay server components. `lib/*`, `state/storage.ts` and `state/budgetReducer.ts` have no directive.
 - **Styling**: no CSS files (other than the existing `app/globals.css`, unchanged), no `style` prop, no CSS Modules, and no native `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>` or `<dialog>` anywhere in `apps/web/src`. Tailwind classes only for layout and spacing on plain elements (`flex*`, `grid*`, `gap-*`, `p*-*`, `m*-*`, `max-w-*`, `w-full`, `items-*`, `justify-*`, `list-none`, and `sm:` variants of these), plus typography and token text colours (`text-2xl`, `font-semibold`, `text-text`, `text-text-muted`) on plain text elements (`h1`, `h3`, `p`). On library components `className` may contain only `w-full`, `self-*`, `justify-self-*`, `col-span-*`. Single column below 640px: any multi-column layout is behind `sm:`.
 - **Structure**: plain semantic elements only (`main`, `section`, `h1`, `h3`, `p`, `ul`, `li`, `form`).
+- **Action errors**: every call to a `useBudget().actions` function is wrapped in `try`/`catch`. A caught `RangeError` whose message is exactly `That change would make a total too large.` (`TOTAL_TOO_LARGE_MESSAGE`, task 02) is shown with that text; anything else is shown as `Something went wrong. Your budget was not changed.` The provider guarantees state and storage are unchanged; the screen keeps its form or dialog open with the user's values. The message goes in the `error` prop of the field the action came from when one fits (the library's Field announces it with `role="alert"`); otherwise in the **one permitted app-level alert**: `<p role="alert" data-part="action-error">{message}</p>`, placed directly after the control that triggered the action, rendered only while a message is shown, and cleared on the next edit or successful action in that form. App code has no other `role="alert"`, `role="status"` or `aria-live`.
 - **Money**: integer cents in state, storage, props and function arguments. Converted to text only at the display edge with `formatMoney` from `@/lib/format` (which wraps the library's `formatCents`). No `parseFloat`, `toFixed`, `Number(` on text, `* 100` or `/ 100` on amounts. Amounts shown are exactly the numbers the `lib/budget.ts` functions return.
 - **Dates**: ISO strings (`YYYY-MM-DD`, months `YYYY-MM`), compared as strings. Never parse them with `new Date(string)` (time-zone shifts). "Today" comes only from `useBudget().today` (task 02).
 - **Copy**: English, sentence case; strings quoted in a task are exact.
@@ -57,6 +58,8 @@ Uses `useBudget().state`, `currentMonth`, `isOtherMonth` and `actions.resetMonth
 - Confirming resets (to `currentMonth`), so `isOtherMonth` becomes false and the notice's button disappears. Because the Dialog cannot return focus to a removed trigger, the notice instead renders `<p ref={doneRef} tabIndex={-1}>New budget started for {formatMonth(currentMonth)}.</p>` and focuses it in an effect after the dialog has closed. That confirmation stays until the page is reloaded.
 - When `isOtherMonth` is false and no reset happened from the notice, it renders nothing visible (an empty fragment).
 
+- **Action errors** (Conventions): if `actions.resetMonth` throws, `ResetMonthDialog` stays open, `onConfirmed` is not called, nothing changes, and `<p role="alert" data-part="action-error">` with the message is shown in the dialog body after the explanation paragraph; focus stays on the dialog's `Reset month` button. Cancel then closes as usual.
+
 ## Screens / states
 Closed; open with expenses; open with no expenses (`0 expenses`); after reset.
 
@@ -72,6 +75,7 @@ Render `renderWithBudget(<ResetMonth />, { state: SCENARIO, today: '2026-11-14' 
 - [ ] While open, the trigger has an ancestor with `inert`.
 - [ ] Keyboard only: Enter on the trigger opens; Tab moves Cancel → Reset month (dialog) → close button → Cancel; Enter on the dialog's `Reset month` resets.
 - [ ] axe: `expectNoAxeViolations()` passes closed and open.
+- [ ] Action error (`renderWithFakeBudget`, `state: SCENARIO`, `resetMonth` throws `new Error('boom')`): confirming keeps `Reset month?` open, shows `Something went wrong. Your budget was not changed.` in `[data-part="action-error"]` (`role="alert"`) inside the dialog, and the mock was called once; Cancel then closes it and focus returns to the trigger. The same from `MonthNotice` (today `'2026-12-02'`): the notice's button stays and no `New budget started…` text appears.
 
 Rollover notice (render `renderWithBudget(<MonthNotice />, { state: SCENARIO, today })`):
 - [ ] `today: '2026-11-14'` (same month): no `New month` heading, no button, nothing rendered inside the container.

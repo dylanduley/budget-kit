@@ -12,6 +12,7 @@ A Table of this month's expenses, newest first, with a Delete button per row and
 - **Client boundary**: a file starts with `'use client';` only if it uses state, effects, refs, context or event handlers. `page.tsx` and `layout.tsx` stay server components. `lib/*`, `state/storage.ts` and `state/budgetReducer.ts` have no directive.
 - **Styling**: no CSS files (other than the existing `app/globals.css`, unchanged), no `style` prop, no CSS Modules, and no native `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>` or `<dialog>` anywhere in `apps/web/src`. Tailwind classes only for layout and spacing on plain elements (`flex*`, `grid*`, `gap-*`, `p*-*`, `m*-*`, `max-w-*`, `w-full`, `items-*`, `justify-*`, `list-none`, and `sm:` variants of these), plus typography and token text colours (`text-2xl`, `font-semibold`, `text-text`, `text-text-muted`) on plain text elements (`h1`, `h3`, `p`). On library components `className` may contain only `w-full`, `self-*`, `justify-self-*`, `col-span-*`. Single column below 640px: any multi-column layout is behind `sm:`.
 - **Structure**: plain semantic elements only (`main`, `section`, `h1`, `h3`, `p`, `ul`, `li`, `form`).
+- **Action errors**: every call to a `useBudget().actions` function is wrapped in `try`/`catch`. A caught `RangeError` whose message is exactly `That change would make a total too large.` (`TOTAL_TOO_LARGE_MESSAGE`, task 02) is shown with that text; anything else is shown as `Something went wrong. Your budget was not changed.` The provider guarantees state and storage are unchanged; the screen keeps its form or dialog open with the user's values. The message goes in the `error` prop of the field the action came from when one fits (the library's Field announces it with `role="alert"`); otherwise in the **one permitted app-level alert**: `<p role="alert" data-part="action-error">{message}</p>`, placed directly after the control that triggered the action, rendered only while a message is shown, and cleared on the next edit or successful action in that form. App code has no other `role="alert"`, `role="status"` or `aria-live`.
 - **Money**: integer cents in state, storage, props and function arguments. Converted to text only at the display edge with `formatMoney` from `@/lib/format` (which wraps the library's `formatCents`). No `parseFloat`, `toFixed`, `Number(` on text, `* 100` or `/ 100` on amounts. Amounts shown are exactly the numbers the `lib/budget.ts` functions return.
 - **Dates**: ISO strings (`YYYY-MM-DD`, months `YYYY-MM`), compared as strings. Never parse them with `new Date(string)` (time-zone shifts). "Today" comes only from `useBudget().today` (task 02).
 - **Copy**: English, sentence case; strings quoted in a task are exact.
@@ -47,6 +48,8 @@ Reads `useBudget().state`, calls `actions.deleteExpense`. Rows from `expensesFor
 - **Empty state**: `emptyState={<p ref={emptyRef} tabIndex={-1}>No expenses yet this month.</p>}`.
 - **Delete**: immediately calls `deleteExpense(id)` (no confirmation). Focus then moves, in the new list, to the Delete button at the same row position; if the deleted row was last, to the new last row's Delete button; if the list is now empty, to the empty-state paragraph. Delete buttons are tracked with a ref map keyed by expense id.
 
+- **Action errors** (Conventions): if `deleteExpense` throws, the row stays, focus stays on its Delete button, and `<p role="alert" data-part="action-error">` with the message is shown directly after the Table, inside the Card. (A total-too-large error cannot come from a delete, but the same rule applies.) It clears on the next successful delete.
+
 ## Screens / states
 Empty; `SCENARIO` (3 rows); a row in a removed category; a long note at 375px.
 
@@ -60,6 +63,7 @@ Render `renderWithBudget(<ExpenseList />, { state })`.
 - [ ] Empty: `createInitialState('2026-11')` shows the table with its headers and the single cell `No expenses yet this month.`
 - [ ] Removed category: after `removeCategory('suggested-eating-out')`, the first row's category cell is `Removed category` and its button is named `Delete $112.35 Removed category expense from Nov 5, 2026`.
 - [ ] Blank category name: a category renamed to `''` shows `Unnamed category`.
+- [ ] Action error (`renderWithFakeBudget`, `state: SCENARIO`, `deleteExpense` throws `new Error('boom')`): clicking the Groceries delete button keeps three rows, keeps focus on that button, and shows `Something went wrong. Your budget was not changed.` in `[data-part="action-error"]` (`role="alert"`) after the table; the mock was called once with `'e2'`.
 - [ ] Keyboard only: Tab reaches the table's scroll region and then each Delete button in row order; Enter or Space on a Delete button deletes that row.
 - [ ] axe: `expectNoAxeViolations()` passes for empty, `SCENARIO`, after one delete, and removed-category states.
 - [ ] Styling rules in Conventions hold (grep); no `any`, `@ts-ignore` or `@ts-expect-error`; `npm run check` passes.

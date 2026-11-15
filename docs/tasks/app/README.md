@@ -7,7 +7,7 @@ Plan for `docs/specs/app-brief.md` (`apps/web`). One file per task; each is self
 | # | Task | Depends on | Group | Shared files touched |
 |---|---|---|---|---|
 | 01 | [Budget math](01-budget-math.md) | none | 0 | creates `src/lib/budget.ts`, `src/lib/format.ts` |
-| 02 | [Persistence and app state](02-persistence-and-state.md) | 01 | 1 | creates `src/state/*`, `src/lib/clock.ts`, `src/features/BudgetApp.tsx`, `src/test/*`; edits `src/app/page.tsx`, `vitest.config.ts`, `apps/web/package.json`, `package-lock.json` |
+| 02 | [Persistence and app state](02-persistence-and-state.md) | 01 | 1 | creates `src/state/*`, `src/lib/clock.ts`, `src/features/BudgetApp.tsx`, `src/test/*` (incl. `renderWithFakeBudget`); edits `src/app/page.tsx`, `vitest.config.ts`, `apps/web/package.json`, `package-lock.json`. Built and reviewed; review items N1–N8 being implemented, and group 2 starts only after they are merged |
 | 03 | [Month setup](03-month-setup.md) | 02 | 2 | `src/features/BudgetApp.tsx` (one line) |
 | 04 | [Add expense](04-add-expense.md) | 02 | 2 | `src/features/BudgetApp.tsx` (one line); own files in `src/features/expenses/` |
 | 05 | [Dashboard](05-dashboard.md) | 02 | 2 | `src/features/BudgetApp.tsx` (one line) |
@@ -73,6 +73,7 @@ Stated identically in every task file. In short:
 - **Money and dates**: integer cents everywhere; `formatMoney` (wrapping the library's `formatCents`) only at display; money labels end `(USD)`; ISO date strings, chosen from a Select of the month's days; "today" injected through the provider, never read in `lib/`.
 - **Styling**: no CSS, no `style`, no native controls; Tailwind for layout and spacing only (plus heading/paragraph typography); single column below 640px.
 - **Tests**: QA writes all `*.test.ts(x)` from the acceptance criteria, colocated with the code. The builder of 02 adds the infrastructure (setup file with jest-dom and cleanup, `createMemoryStorage`, `renderWithBudget` with `refresh()`, `expectNoAxeViolations`, the `SCENARIO` fixture). localStorage is faked with `createMemoryStorage` passed to the provider (jsdom's own `localStorage` is also cleared after each test). Tests import from `vitest` explicitly (the app has no Vitest globals). `npm run check` already runs the app's tests (root `test` runs every workspace).
+- **Action errors**: actions can throw (task 01 validation, or the provider's `That change would make a total too large.`). Every screen catches them, keeps its form or dialog open, and shows the message in the matching field's `error` prop, or else in the one permitted app-level alert, `<p role="alert" data-part="action-error">`; unexpected errors read `Something went wrong. Your budget was not changed.` Screen QA tests this with `renderWithFakeBudget` and a throwing action.
 - **Accessibility checks**: every screen task's QA runs `expectNoAxeViolations` (axe-core in jsdom, all rules except `color-contrast`) on that screen's states; task 08's QA runs it on the whole page in all 14 states, including landmark and heading rules; the a11y-reviewer runs axe **with contrast** in a real browser on each screen task and on 08. jsdom-invisible behaviour (layout at 375px, focus rings, overflow) is in each task's **Manual browser checks**.
 
 ## Open questions for the lead
@@ -104,6 +105,8 @@ Each has the assumption the tasks currently use.
 1. **First-run reach on a phone (from the new page order).** A new user lands on a dashboard of `Not set` / `$0.00` Stats and five `No plan set` rows, then `Add expense` and an empty expense table, and must scroll (or Tab through `Add expense`, the table region) to reach `Monthly income (USD)`. The prompts say "below" but do not link or move there. Options for you, none planned: accept it; an in-page link to the setup section (a library `Button`-styled link or plain `<a href="#…">` would need a decision on styling, since the app may not style its own controls); or a library link component. Assumed: accept as is.
 2. **Add expense before setup.** Because the suggested categories exist from the start, a user can add expenses from the top of the page before entering income or plans; the dashboard then shows `No plan set` and `Not set` as designed. Assumed fine.
 
+3. **No error boundary.** Every action call is caught (Conventions, "Action errors"), but an exception thrown while *rendering* (a bug, or a library `RangeError` such as `formatCents` on a non-integer) is not caught, and Next.js shows its error page or a blank page. Decide what a render error should show (for example a library-built "Something went wrong, reload" panel via an `app/error.tsx`) and whether that becomes a task; nothing is planned.
+
 ### (c) Minor assumptions
 1. Suggested categories: Rent, Groceries, Transport, Utilities, Eating out, $0 planned, fixed ids `suggested-*`.
 2. Dollars only (labels `(USD)`); display formats `$1,505.18`, `-$270.00`, `Nov 5, 2026`, `November 2026`; English strings.
@@ -112,7 +115,7 @@ Each has the assumption the tasks currently use.
 5. Storage key `budget-kit:budget`, version 1; any other version is unsupported (no migrations yet); no cross-tab sync.
 6. Ids from `crypto.randomUUID`, injected in tests.
 7. "Today" is read once per load; a month change shows on the next load.
-8. Totals beyond `Number.MAX_SAFE_INTEGER` throw (about 91 maximum-size expenses); not handled in the UI.
+8. Totals are not capped by `budget.ts` (only single amounts are); the provider keeps every held state safe to total (task 02 N1/N2), and screens show `That change would make a total too large.` if a change would overflow.
 9. Tailwind typography and token text colours are allowed on `h1`, `h3` and `p` (the scaffold already does this), not only layout.
 10. Each Card is a named landmark, so the page has about seven regions (noted in the library plan).
 
