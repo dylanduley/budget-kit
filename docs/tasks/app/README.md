@@ -17,6 +17,14 @@ Plan for `docs/specs/app-brief.md` (`apps/web`). One file per task; each is self
 
 All paths are under `apps/web/`.
 
+### Follow-ups (planned, not built)
+See [../followups-plan.md](../followups-plan.md) for order, planner defaults and risks.
+
+| # | Task | Depends on | Group | Shared files touched |
+|---|---|---|---|---|
+| 09 | [Invalid money text warns and is not saved](09-invalid-money-not-saved.md) | library 14 | F2 | `src/features/setup/MonthSetup.tsx`; one sentence in this README |
+| 10 | [Announce non-error changes with StatusMessage](10-status-announcements.md) | library 15, app 09 | F3 | `AddExpense.tsx`, `ExpenseList.tsx`, `MonthSetup.tsx`, `BudgetApp.tsx`, `styling.rules.test.ts`, four existing tests; two passages in this README |
+
 ## Build order and parallel groups
 
 | Order | Group | Tasks | Starts when |
