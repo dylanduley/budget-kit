@@ -7,6 +7,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { NavBar } from '@budget-kit/ui';
 
 import { AddExpense } from '@/features/expenses/AddExpense';
+import { MonthSwitcher } from '@/features/month/MonthSwitcher';
 import { useBudget } from '@/state/BudgetProvider';
 
 import { NAV_ITEMS } from './navItems';
@@ -29,7 +30,10 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
           <p className="font-semibold text-text">Budget Kit</p>
           <NavBar label="Main" items={NAV_ITEMS} currentHref={pathname} linkComponent={Link} />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">{ready ? <AddExpense /> : null}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <MonthSwitcher />
+          {ready ? <AddExpense /> : null}
+        </div>
       </header>
       <main
         className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6"
