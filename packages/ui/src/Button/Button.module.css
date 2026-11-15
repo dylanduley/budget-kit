@@ -4,6 +4,7 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  max-width: 100%;
   padding: var(--bk-space-2) var(--bk-space-4);
   border: 1px solid transparent;
   border-radius: var(--bk-radius-md);
@@ -85,6 +86,11 @@
 /* Loading keeps the variant colours and is not natively disabled. */
 .button[data-loading='true']:not(:disabled) {
   cursor: progress;
+}
+
+.label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .button[data-loading='true'] .label {
