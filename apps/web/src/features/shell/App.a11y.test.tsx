@@ -390,13 +390,21 @@ describe('headings (populated SCENARIO)', () => {
     expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument();
   });
 
-  it('/history: h1 History, h2 Months and Start over', () => {
+  // The card is "Your months", not the specced "Months": the table caption is "Months", and two regions with
+  // the same name would fail axe's landmark-unique rule.
+  it('/history: h1 History, h2 Your months and Start over; the table is named Months; each region name is unique', () => {
     renderApp({ state: SCENARIO, path: '/history' });
     expect(headingList()).toEqual([
       [1, 'History'],
-      [2, 'Months'],
+      [2, 'Your months'],
       [2, 'Start over'],
     ]);
+    expect(screen.getAllByRole('table', { name: 'Months' })).toHaveLength(1);
+    // The table's scroll wrapper is the region named Months (from the caption).
+    const regions = screen.getAllByRole('region');
+    const names = regions.map((r) => r.getAttribute('aria-label') ?? document.getElementById(r.getAttribute('aria-labelledby') ?? '')?.textContent);
+    expect([...names].sort()).toEqual(['Months', 'Start over', 'Your months']);
+    for (const name of ['Months', 'Your months', 'Start over']) expect(screen.getAllByRole('region', { name })).toHaveLength(1);
   });
 
   it.each(STATES.filter((s) => s.dialog === undefined).map((s) => [s.name, s] as const))(
