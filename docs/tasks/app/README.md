@@ -113,7 +113,7 @@ Each has the assumption the tasks currently use.
 - **Rollover notice wording** as written (07).
 - **Expense form**: a category must be chosen; saving closes the dialog, no "add another" (04).
 - **Dependencies approved**: `@testing-library/user-event` and `axe-core` are added to `apps/web` devDependencies in task 02.
-- **Accepted as is**: page-level messages are plain elements and are not announced (except the focused post-reset confirmation); MoneyField reports `null` for both empty and invalid text (empty or invalid income/planned stores 0; forms treat both as missing); app contrast is checked by hand in a real browser, with no automated browser runner.
+- **Accepted as is**: page-level messages are plain elements and are not announced (except the focused post-reset confirmation); MoneyField reports `null` for both empty and invalid text, with the parse result as a second argument; an empty income or planned field stores 0, while invalid text is not saved and shows the library error at once (app task 26); the Add category dialog does not save while its Planned text is invalid; AddExpense treats both as missing; app contrast is checked by hand in a real browser, with no automated browser runner.
 
 ### (a) Library notes (no decision needed; for awareness)
 1. **ProgressBar with `max` 0 shows the danger tone** for any spending. Handled by not rendering a bar for unplanned categories; the library docs could mention it.

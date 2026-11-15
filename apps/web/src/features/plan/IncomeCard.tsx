@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { Card, MoneyField } from '@budget-kit/ui';
+import type { MoneyParseResult } from '@budget-kit/ui';
 
 import { useBudget } from '@/state/BudgetProvider';
 
@@ -18,7 +19,11 @@ export function IncomeCard(): ReactElement | null {
   if (budget.status !== 'ready') return null;
   const { actions } = budget;
 
-  function handleChange(cents: number | null): void {
+  function handleChange(cents: number | null, result: MoneyParseResult): void {
+    if (!result.ok) {
+      setError(null);
+      return;
+    }
     setDraft(cents);
     try {
       actions.setIncome(cents ?? 0);
@@ -34,6 +39,7 @@ export function IncomeCard(): ReactElement | null {
         label="Monthly income (USD)"
         value={draft}
         error={error ?? undefined}
+        validateOn="change"
         onChange={handleChange}
       />
     </Card>

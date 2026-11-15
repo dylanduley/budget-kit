@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import type { ReactElement, Ref } from 'react';
 
 import { Button, MoneyField, TextField } from '@budget-kit/ui';
+import type { MoneyParseResult } from '@budget-kit/ui';
 
 import { type BudgetState, type Category, categoryLabel, categoryNameError } from '@/lib/budget';
 import type { BudgetActions } from '@/state/BudgetProvider';
@@ -66,7 +67,11 @@ export function CategoryRow({
     setNameError(null);
   }
 
-  function handlePlannedChange(cents: number | null): void {
+  function handlePlannedChange(cents: number | null, result: MoneyParseResult): void {
+    if (!result.ok) {
+      setPlannedError(null);
+      return;
+    }
     setPlannedDraft(cents);
     try {
       actions.updateCategory(id, { plannedCents: cents ?? 0 });
@@ -92,6 +97,7 @@ export function CategoryRow({
         label={`Category ${position} planned (USD)`}
         value={plannedDraft}
         error={plannedError ?? undefined}
+        validateOn="change"
         onChange={handlePlannedChange}
       />
       <div className="flex flex-col items-start gap-2">
