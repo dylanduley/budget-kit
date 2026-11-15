@@ -2,8 +2,10 @@
 
 import type { ReactElement } from 'react';
 
-import { MonthSetup } from '@/features/setup/MonthSetup';
 import { useBudget } from '@/state/BudgetProvider';
+
+import { CategoriesCard } from './CategoriesCard';
+import { IncomeCard } from './IncomeCard';
 
 export function PlanPage(): ReactElement {
   const budget = useBudget();
@@ -17,10 +19,12 @@ export function PlanPage(): ReactElement {
     );
   }
 
+  const key = `${budget.viewedMonth}:${budget.generation}`;
   return (
     <>
       <h1 className="text-2xl font-semibold text-text">Plan</h1>
-      <MonthSetup key={`${budget.viewedMonth}:${budget.generation}`} />
+      <IncomeCard key={`income:${key}`} />
+      <CategoriesCard key={`categories:${key}`} />
     </>
   );
 }

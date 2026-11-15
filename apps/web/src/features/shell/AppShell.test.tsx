@@ -127,7 +127,7 @@ describe('shell structure on every route', () => {
     expect(screen.queryByText('Your months will be listed here.')).not.toBeInTheDocument();
   });
 
-  it('Plan shows the income field of the temporary setup form', () => {
+  it('Plan shows the Monthly income (USD) field', () => {
     renderApp({ state: SCENARIO, path: '/plan' });
     expect(screen.getByRole('textbox', { name: 'Monthly income (USD)' })).toBeInTheDocument();
   });
@@ -243,9 +243,10 @@ describe('Add expense in the header', () => {
   it('Add expense appears once a category exists, without a reload', async () => {
     const { user } = renderApp({ path: '/plan' });
     expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
-    await user.type(screen.getByRole('textbox', { name: 'New category name' }), 'Fun');
-    await user.type(screen.getByRole('textbox', { name: 'New category planned (USD)' }), '10');
-    await user.click(screen.getByRole('button', { name: /^Add category/ }));
+    await user.click(screen.getByRole('button', { name: 'Add category' }));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Fun');
+    await user.type(screen.getByRole('textbox', { name: 'Planned (USD)' }), '10');
+    await user.click(screen.getByRole('button', { name: 'Save category' }));
     expect(await screen.findByRole('button', { name: 'Add expense' })).toBeInTheDocument();
   });
 });
