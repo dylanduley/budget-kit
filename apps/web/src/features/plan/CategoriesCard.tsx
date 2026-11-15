@@ -12,7 +12,7 @@ import { actionMessage } from './actionMessage';
 import { CategoryRow } from './CategoryRow';
 import { Suggestions } from './Suggestions';
 
-type PendingFocus = { kind: 'remove'; id: string | null } | { kind: 'planned'; name: string };
+type PendingFocus = { kind: 'remove'; id: string | null } | { kind: 'planned'; id: string };
 
 export function CategoriesCard(): ReactElement | null {
   const budget = useBudget();
@@ -28,8 +28,7 @@ export function CategoriesCard(): ReactElement | null {
     if (target === null || categories === null) return;
     pendingFocus.current = null;
     if (target.kind === 'planned') {
-      const created = categories.find((category) => category.name === target.name);
-      (created === undefined ? undefined : plannedFields.current.get(created.id))?.focus();
+      plannedFields.current.get(target.id)?.focus();
       return;
     }
     const button = target.id === null ? undefined : removeButtons.current.get(target.id);
@@ -95,8 +94,8 @@ export function CategoriesCard(): ReactElement | null {
         <Suggestions
           state={state}
           actions={actions}
-          onAdded={(name) => {
-            pendingFocus.current = { kind: 'planned', name };
+          onAdded={(id) => {
+            pendingFocus.current = { kind: 'planned', id };
           }}
         />
       </div>

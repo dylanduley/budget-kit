@@ -79,9 +79,7 @@ export function CategoryRow({
   const plannedRef: Ref<HTMLInputElement> = (element) => registerPlanned(id, element);
 
   return (
-    // Top-aligned so an error line under a field cannot push Remove out of line; the Remove cell
-    // is offset by the label height on wide screens.
-    <li className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-start">
+    <li className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
       <TextField
         label={`Category ${position} name`}
         value={nameDraft}
@@ -96,11 +94,10 @@ export function CategoryRow({
         error={plannedError ?? undefined}
         onChange={handlePlannedChange}
       />
-      <div className="flex flex-col gap-2 sm:pt-6">
+      <div className="flex flex-col items-start gap-2">
         <Button
           ref={(element) => registerRemove(id, element)}
           variant="ghost"
-          className="justify-self-start"
           aria-label={`Remove ${categoryLabel(state, id)}`}
           onClick={() => setRemoveError(onRemove(id))}
         >

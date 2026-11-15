@@ -13,7 +13,7 @@ import { actionMessage } from './actionMessage';
 export interface SuggestionsProps {
   state: BudgetState;
   actions: BudgetActions;
-  onAdded: (name: string) => void;
+  onAdded: (id: string) => void;
 }
 
 export function Suggestions({ state, actions, onAdded }: SuggestionsProps): ReactElement | null {
@@ -23,14 +23,15 @@ export function Suggestions({ state, actions, onAdded }: SuggestionsProps): Reac
   if (unused.length === 0) return null;
 
   function handleAdd(name: string): void {
+    let id: string;
     try {
-      actions.addCategory({ name, plannedCents: 0 });
+      id = actions.addCategory({ name, plannedCents: 0 });
     } catch (caught) {
       setError(actionMessage(caught));
       return;
     }
     setError(null);
-    onAdded(name);
+    onAdded(id);
   }
 
   return (
