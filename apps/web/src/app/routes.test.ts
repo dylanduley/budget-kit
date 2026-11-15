@@ -69,11 +69,11 @@ describe('routes: metadata', () => {
   });
 
   it.each([
-    ['Overview', () => import('./page')],
+    [{ absolute: 'Overview · Budget Kit' }, () => import('./page')],
     ['Spending', () => import('./spending/page')],
     ['Plan', () => import('./plan/page')],
     ['History', () => import('./history/page')],
-  ] as const)('the %s page title', async (title, load) => {
+  ] as const)('the %j page title', async (title, load) => {
     const mod = await load();
     expect(mod.metadata).toEqual({ title });
     expect(typeof mod.default).toBe('function');
