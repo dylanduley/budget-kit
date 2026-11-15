@@ -1,4 +1,13 @@
-import { type BudgetState, type Category, type Expense, MAX_CENTS, isIsoDate, isIsoMonth } from '@/lib/budget';
+import {
+  type BudgetState,
+  type Category,
+  type Expense,
+  MAX_CENTS,
+  getCategorySummaries,
+  getTotals,
+  isIsoDate,
+  isIsoMonth,
+} from '@/lib/budget';
 
 export const STORAGE_KEY = 'budget-kit:budget';
 export const STORAGE_VERSION = 1;
@@ -56,6 +65,17 @@ export function isBudgetState(value: unknown): value is BudgetState {
   return true;
 }
 
+// Per-amount limits do not bound the sums, so totalling a valid-looking state can still throw.
+export function canBeTotalled(state: BudgetState): boolean {
+  try {
+    getTotals(state);
+    getCategorySummaries(state);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Rebuilds the state from known fields only, so unknown stored keys never reach the app.
 function copyState(state: BudgetState): BudgetState {
   return {
@@ -85,7 +105,9 @@ export function parseStoredBudget(raw: string | null): LoadResult {
   if (typeof version !== 'number' || !Number.isInteger(version)) return { status: 'invalid', reason: 'corrupt' };
   if (version !== STORAGE_VERSION) return { status: 'invalid', reason: 'unsupported-version' };
   if (!isBudgetState(state)) return { status: 'invalid', reason: 'corrupt' };
-  return { status: 'loaded', state: copyState(state) };
+  const copy = copyState(state);
+  if (!canBeTotalled(copy)) return { status: 'invalid', reason: 'corrupt' };
+  return { status: 'loaded', state: copy };
 }
 
 export function serializeBudget(state: BudgetState): string {

@@ -5,7 +5,11 @@ export interface MemoryStorageOptions {
   throwOnSet?: boolean;
 }
 
-export type MemoryStorage = StorageLike & { dump(): Record<string, string>; setItemCalls: number };
+export type MemoryStorage = StorageLike & {
+  dump(): Record<string, string>;
+  setItemCalls: number;
+  getItemCalls: number;
+};
 
 export function createMemoryStorage(
   initial: Record<string, string> = {},
@@ -14,7 +18,9 @@ export function createMemoryStorage(
   const data = new Map<string, string>(Object.entries(initial));
   return {
     setItemCalls: 0,
+    getItemCalls: 0,
     getItem(key) {
+      this.getItemCalls += 1;
       if (options.throwOnGet === true) throw new DOMException('Access denied', 'SecurityError');
       return data.get(key) ?? null;
     },

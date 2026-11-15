@@ -21,7 +21,7 @@ import {
 } from '@/lib/budget';
 import { todayIso } from '@/lib/clock';
 import { type BudgetAction, budgetReducer } from '@/state/budgetReducer';
-import { type LoadResult, type StorageLike, loadBudget, saveBudget } from '@/state/storage';
+import { type LoadResult, type StorageLike, canBeTotalled, loadBudget, saveBudget } from '@/state/storage';
 
 export interface BudgetActions {
   setIncome(incomeCents: number): void;
@@ -43,6 +43,7 @@ export type BudgetContextValue =
       isOtherMonth: boolean;
       generation: number;
       loadStatus: LoadResult['status'];
+      savedDataReplaced: boolean;
       actions: BudgetActions;
     };
 
@@ -58,6 +59,7 @@ interface Model {
   today: string;
   generation: number;
   loadStatus: LoadResult['status'];
+  savedDataReplaced: boolean;
 }
 
 const BudgetContext = createContext<BudgetContextValue | null>(null);
@@ -66,8 +68,19 @@ function defaultGetToday(): string {
   return todayIso();
 }
 
+let idCounter = 0;
+
+// randomUUID needs a secure origin (not plain http on a LAN address), so fall back.
 function defaultCreateId(): string {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined') {
+    if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    if (typeof crypto.getRandomValues === 'function') {
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+  }
+  idCounter += 1;
+  return `${idCounter}-${Math.random().toString(36).slice(2)}`;
 }
 
 function resolveStorage(storage: StorageLike | null | undefined): StorageLike | null {
@@ -105,6 +118,7 @@ export function BudgetProvider({
       today,
       generation: 0,
       loadStatus: result.status,
+      savedDataReplaced: false,
     };
     storageRef.current = resolved;
     modelRef.current = loaded;
@@ -120,13 +134,17 @@ export function BudgetProvider({
     // Reduce first so a throwing action leaves state and storage untouched.
     function commit(action: BudgetAction, generation?: number): void {
       const m = current();
+      const nextState = budgetReducer(m.state, action);
+      if (nextState === m.state) return;
+      if (!canBeTotalled(nextState)) throw new RangeError('That change would make a total too large.');
+      const saved = saveBudget(storageRef.current, nextState);
       const next: Model = {
         ...m,
-        state: budgetReducer(m.state, action),
+        state: nextState,
         generation: generation ?? m.generation,
+        savedDataReplaced: m.savedDataReplaced || (saved && m.loadStatus === 'invalid'),
       };
       modelRef.current = next;
-      saveBudget(storageRef.current, next.state);
       setModel(next);
     }
     return {
@@ -162,6 +180,7 @@ export function BudgetProvider({
       isOtherMonth: model.state.month !== currentMonth,
       generation: model.generation,
       loadStatus: model.loadStatus,
+      savedDataReplaced: model.savedDataReplaced,
       actions,
     };
   }, [model, actions]);

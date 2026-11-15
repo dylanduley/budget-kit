@@ -21,7 +21,7 @@ export function BudgetApp(): ReactElement {
 
   return (
     <main className={MAIN_CLASS}>
-      <div>
+      <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-text">Budget Kit</h1>
         <p className="text-text-muted">Budget for {formatMonth(budget.state.month)}</p>
       </div>
