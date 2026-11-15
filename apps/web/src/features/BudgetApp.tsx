@@ -2,6 +2,7 @@
 
 import type { ReactElement } from 'react';
 
+import { ExpenseList } from '@/features/expenses/ExpenseList';
 import { formatMonth } from '@/lib/budget';
 import { useBudget } from '@/state/BudgetProvider';
 
@@ -25,6 +26,7 @@ export function BudgetApp(): ReactElement {
         <h1 className="text-2xl font-semibold text-text">Budget Kit</h1>
         <p className="text-text-muted">Budget for {formatMonth(budget.state.month)}</p>
       </div>
+      <ExpenseList />
     </main>
   );
 }
