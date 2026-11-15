@@ -31,7 +31,7 @@ describe('ready skeleton', () => {
   it('shows one h1, Budget Kit, and the month line, without aria-busy', async () => {
     const { container } = renderWithBudget(<BudgetApp />, { state: SCENARIO });
     expect(await screen.findByText('Budget for November 2026')).toBeInTheDocument();
-    expect(screen.getAllByRole('heading')).toHaveLength(1);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1, name: 'Budget Kit' })).toBeInTheDocument();
     const main = screen.getByRole('main');
     expect(main).not.toHaveAttribute('aria-busy');
