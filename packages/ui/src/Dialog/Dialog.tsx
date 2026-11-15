@@ -176,14 +176,14 @@ export function Dialog({
         tabIndex={-1}
         className={className ? `${styles.panel} ${className}` : styles.panel}
       >
-        <header className={styles.header}>
+        <div className={styles.header}>
           <h2 id={titleId} className={styles.title}>
             {title}
           </h2>
           <Button variant="ghost" size="sm" aria-label={closeLabel} onClick={() => onClose()}>
             <span aria-hidden="true">×</span>
           </Button>
-        </header>
+        </div>
         <div
           ref={bodyRef}
           data-part="body"
