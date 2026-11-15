@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { MoneyField } from '../MoneyField/MoneyField';
+import { Select } from '../Select/Select';
+import { TextField } from '../TextField/TextField';
 import { Button, type ButtonSize, type ButtonVariant } from './Button';
 
 const meta = {
@@ -98,5 +101,32 @@ export const SubmitInForm: Story = {
       </label>
       <Button type="submit">Add category</Button>
     </form>
+  ),
+};
+
+export const BesideFields: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Button md and every field are the same height (--bk-control-height). Use ghost for row actions beside fields so they do not read as inputs; size sm is for compact places, not beside fields.',
+      },
+    },
+  },
+  render: () => (
+    <div style={{ display: 'flex', gap: 'var(--bk-space-3)', alignItems: 'flex-end' }}>
+      <TextField label="Category 1 name" defaultValue="Housing" />
+      <MoneyField label="Category 1 planned (USD)" value={120000} onChange={() => {}} />
+      <Select
+        label="Category"
+        defaultValue="housing"
+        options={[
+          { value: 'housing', label: 'Housing' },
+          { value: 'food', label: 'Food' },
+        ]}
+      />
+      <Button variant="ghost">Remove</Button>
+      <Button variant="secondary">Save</Button>
+    </div>
   ),
 };

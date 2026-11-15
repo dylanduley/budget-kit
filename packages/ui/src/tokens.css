@@ -74,6 +74,10 @@
   --bk-space-12: 3rem;
   --bk-space-16: 4rem;
 
+  /* Control heights */
+  --bk-control-height: var(--bk-space-10);
+  --bk-control-height-sm: var(--bk-space-8);
+
   /* Radii */
   --bk-radius-sm: 0.25rem;
   --bk-radius-md: 0.5rem;

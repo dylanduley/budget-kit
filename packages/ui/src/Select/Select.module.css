@@ -23,7 +23,7 @@
   flex: 1;
   min-width: 0;
   box-sizing: border-box;
-  min-height: var(--bk-space-10);
+  min-height: var(--bk-control-height);
   margin: 0;
   padding: 0 var(--bk-space-10) 0 var(--bk-space-3);
   appearance: none;
