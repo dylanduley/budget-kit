@@ -164,7 +164,7 @@ export function updateCategory(state: BudgetState, id: string, patch: CategoryPa
   if (!state.categories.some((category) => category.id === id)) return state;
   return {
     ...state,
-    categories: state.categories.map((category) => 
+    categories: state.categories.map((category) =>
       category.id === id
         ? {
             id: category.id,
