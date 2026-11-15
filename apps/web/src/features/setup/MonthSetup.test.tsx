@@ -149,7 +149,9 @@ describe('first run and labels', () => {
   it('structure: a region, a list and a named form with a submit button', () => {
     renderWithBudget(<MonthSetup />);
     expect(screen.getByRole('region', { name: 'Set up the month' })).toBeInTheDocument();
-    expect(screen.getByRole('list')).toBeInTheDocument();
+    const list = screen.getByRole('list');
+    expect(list).toHaveAttribute('role', 'list');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5);
     const form = screen.getByRole('form', { name: 'Add a category' });
     expect(form).toHaveAttribute('novalidate');
     expect(within(form).getByRole('button', { name: 'Add category' })).toHaveAttribute('type', 'submit');

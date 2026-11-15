@@ -238,7 +238,9 @@ function MonthSetupReady({ state, actions }: { state: BudgetState; actions: Budg
           {state.categories.length === 0 ? (
             <p>No categories yet. Add one below.</p>
           ) : (
-            <ul className="m-0 flex list-none flex-col gap-4 p-0">
+            // Safari/VoiceOver drops list semantics when list-style is none
+            // eslint-disable-next-line jsx-a11y/no-redundant-roles
+            <ul role="list" className="m-0 flex list-none flex-col gap-4 p-0">
               {state.categories.map((category, index) => (
                 <CategoryRow
                   key={category.id}
