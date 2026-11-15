@@ -57,6 +57,20 @@ describe('ready skeleton', () => {
   });
 });
 
+describe('ready layout wrapper', () => {
+  it('wraps the h1 and the month line in a flex column with gap-2, directly inside main', async () => {
+    renderWithBudget(<BudgetApp />, { state: SCENARIO });
+    const month = await screen.findByText('Budget for November 2026');
+    const heading = screen.getByRole('heading', { level: 1 });
+    const wrapper = heading.parentElement;
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toBe(month.parentElement);
+    expect(wrapper?.tagName).toBe('DIV');
+    expect(wrapper).toHaveClass('flex', 'flex-col', 'gap-2');
+    expect(wrapper?.parentElement).toBe(screen.getByRole('main'));
+  });
+});
+
 describe('loading skeleton', () => {
   it('is a busy main with exactly one h1, Budget Kit', () => {
     const container = document.createElement('div');

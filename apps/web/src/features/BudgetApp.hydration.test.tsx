@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { type ReactElement, useEffect, useState } from 'react';
-import { hydrateRoot } from 'react-dom/client';
+import { type Root, hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,11 +16,18 @@ declare global {
 }
 
 let previousActFlag: boolean | undefined;
+const roots: Root[] = [];
 beforeEach(() => {
   previousActFlag = globalThis.IS_REACT_ACT_ENVIRONMENT;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 });
-afterEach(() => {
+afterEach(async () => {
+  // Every hydrated root is unmounted, so no root (or its effects) leaks into the next test.
+  for (const root of roots.splice(0)) {
+    await act(async () => {
+      root.unmount();
+    });
+  }
   globalThis.IS_REACT_ACT_ENVIRONMENT = previousActFlag;
   document.body.innerHTML = '';
 });
@@ -45,10 +52,24 @@ async function hydrate(serverUi: ReactElement, clientUi: ReactElement) {
   const onRecoverableError = vi.fn();
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   await act(async () => {
-    hydrateRoot(container, clientUi, { onRecoverableError });
+    roots.push(hydrateRoot(container, clientUi, { onRecoverableError }));
   });
   return { html, container, onRecoverableError, consoleError };
 }
+
+describe('hydration roots', () => {
+  it('are unmounted after each test (the container is emptied by unmount)', async () => {
+    const ui = app(seeded());
+    const { container } = await hydrate(ui, ui);
+    expect(roots).toHaveLength(1);
+    const root = roots[0];
+    await act(async () => {
+      root?.unmount();
+    });
+    roots.length = 0;
+    expect(container.querySelector('main')).toBeNull();
+  });
+});
 
 describe('server render (loading state)', () => {
   it('contains the loading text and heading, and nothing from storage or the clock', () => {
@@ -161,7 +182,7 @@ describe('the hydration harness can fail', () => {
     const onRecoverableError = vi.fn();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     await act(async () => {
-      hydrateRoot(container, <BrokenProvider storage={storage} />, { onRecoverableError });
+      roots.push(hydrateRoot(container, <BrokenProvider storage={storage} />, { onRecoverableError }));
     });
     expect(onRecoverableError.mock.calls.length + consoleError.mock.calls.length).toBeGreaterThan(0);
   });

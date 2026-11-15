@@ -6,6 +6,7 @@ import { SCENARIO } from '@/test/fixtures';
 import { createMemoryStorage } from '@/test/memoryStorage';
 import {
   STORAGE_KEY,
+  canBeTotalled,
   STORAGE_VERSION,
   isBudgetState,
   loadBudget,
@@ -26,6 +27,23 @@ function stored(mutate: (state: Record<string, unknown>) => void): string {
   const state = clone() as unknown as Record<string, unknown>;
   mutate(state);
   return JSON.stringify({ version: 1, state });
+}
+
+function manyCategories(n: number, plannedCents: number): string {
+  const categories = Array.from({ length: n }, (_v, i) => ({ id: `c${i}`, name: 'x', plannedCents }));
+  return JSON.stringify({ version: 1, state: { month: '2026-11', incomeCents: 0, categories, expenses: [] } });
+}
+
+function manyExpenses(n: number, amountCents: number): string {
+  const expenses = Array.from({ length: n }, (_v, i) => ({
+    id: `x${i}`,
+    categoryId: 'c0',
+    amountCents,
+    note: '',
+    date: '2026-11-10',
+  }));
+  const categories = [{ id: 'c0', name: 'x', plannedCents: 0 }];
+  return JSON.stringify({ version: 1, state: { month: '2026-11', incomeCents: 0, categories, expenses } });
 }
 
 describe('storage constants', () => {
@@ -210,6 +228,58 @@ describe('isBudgetState', () => {
     for (const value of [null, undefined, 0, '', 'x', [], [SCENARIO], true, () => SCENARIO]) {
       expect(isBudgetState(value)).toBe(false);
     }
+  });
+});
+
+describe('totals safety', () => {
+  it('rejects 91 categories at 99999999999999 (planned total unsafe) as corrupt', () => {
+    expect(parseStoredBudget(manyCategories(91, 99999999999999))).toEqual(CORRUPT);
+  });
+
+  it('rejects 91 expenses of MAX_CENTS in the month as corrupt', () => {
+    expect(parseStoredBudget(manyExpenses(91, MAX_CENTS))).toEqual(CORRUPT);
+  });
+
+  it('still loads 90 categories and 90 expenses at MAX_CENTS (the total is safe)', () => {
+    expect(90 * MAX_CENTS).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
+    const cats = parseStoredBudget(manyCategories(90, MAX_CENTS));
+    expect(cats.status).toBe('loaded');
+    const exps = parseStoredBudget(manyExpenses(90, MAX_CENTS));
+    expect(exps.status).toBe('loaded');
+  });
+
+  it('is decided by the sum, not the count: 91 small categories load', () => {
+    expect(parseStoredBudget(manyCategories(91, 1)).status).toBe('loaded');
+  });
+
+  it('loadBudget reports it as invalid/corrupt and writes nothing, leaving the string untouched', () => {
+    const raw = manyCategories(91, 99999999999999);
+    const storage = createMemoryStorage({ [STORAGE_KEY]: raw });
+    expect(loadBudget(storage)).toEqual(CORRUPT);
+    expect(storage.setItemCalls).toBe(0);
+    expect(storage.dump()[STORAGE_KEY]).toBe(raw);
+  });
+
+  it('canBeTotalled is true for ordinary and boundary states', () => {
+    expect(canBeTotalled(SCENARIO)).toBe(true);
+    expect(canBeTotalled({ month: '2026-11', incomeCents: 0, categories: [], expenses: [] })).toBe(true);
+    const big = JSON.parse(manyCategories(90, MAX_CENTS)) as { state: BudgetState };
+    expect(canBeTotalled(big.state)).toBe(true);
+  });
+
+  it('canBeTotalled is false when planned or spent sums overflow, and never throws', () => {
+    const planned = (JSON.parse(manyCategories(91, MAX_CENTS)) as { state: BudgetState }).state;
+    const spent = (JSON.parse(manyExpenses(91, MAX_CENTS)) as { state: BudgetState }).state;
+    expect(canBeTotalled(planned)).toBe(false);
+    expect(canBeTotalled(spent)).toBe(false);
+    expect(() => canBeTotalled(null as unknown as BudgetState)).not.toThrow();
+    expect(canBeTotalled(null as unknown as BudgetState)).toBe(false);
+  });
+
+  it('expenses outside the month do not count towards the total', () => {
+    const state = (JSON.parse(manyExpenses(91, MAX_CENTS)) as { state: BudgetState }).state;
+    const elsewhere = { ...state, expenses: state.expenses.map((e) => ({ ...e, date: '2026-10-10' })) };
+    expect(canBeTotalled(elsewhere)).toBe(true);
   });
 });
 
@@ -426,7 +496,16 @@ function mutateOnce(root: unknown, rng: Rng): unknown {
 function fuzzInput(rng: Rng): string {
   const mode = int(rng, 10);
   if (mode === 0) return JSON.stringify(randomJson(rng));
-  const base = JSON.parse(serializeBudget(SCENARIO)) as unknown;
+  const base = JSON.parse(serializeBudget(SCENARIO)) as { state: BudgetState };
+  if (mode === 3 || mode === 4) {
+    // Overflow-bearing: many extra amounts at or near MAX_CENTS, so totals sit around the safe limit.
+    const extra = 80 + int(rng, 20);
+    const amount = pick(rng, [MAX_CENTS, MAX_CENTS - 1, 99999999999999, 10 ** 13]);
+    for (let i = 0; i < extra; i++) {
+      if (mode === 3) base.state.categories.push({ id: `o${i}`, name: 'o', plannedCents: amount });
+      else base.state.expenses.push({ id: `o${i}`, categoryId: 'suggested-rent', amountCents: amount, note: '', date: '2026-11-15' });
+    }
+  }
   let value: unknown = base;
   const rounds = 1 + int(rng, 4);
   for (let i = 0; i < rounds; i++) value = mutateOnce(value, rng);
@@ -445,7 +524,7 @@ describe('fuzz', () => {
 
   it.each(SEEDS)(`loadBudget never throws; ok results satisfy isBudgetState and survive getTotals (seed %i, ${PER_SEED} inputs)`, (seed) => {
     const rng = mulberry32(seed);
-    const counts = { loaded: 0, corrupt: 0, unsupported: 0, empty: 0 };
+    const counts = { loaded: 0, corrupt: 0, unsupported: 0, empty: 0, overflowRejected: 0, overflowLoaded: 0 };
     for (let i = 0; i < PER_SEED; i++) {
       const raw = fuzzInput(rng);
       let result;
@@ -456,10 +535,13 @@ describe('fuzz', () => {
       } catch (error) {
         throw new Error(`loadBudget threw for input ${raw} (seed ${seed}, #${i}): ${String(error)}`);
       }
+      if (result.status === 'loaded' && result.state.categories.length + result.state.expenses.length > 60) counts.overflowLoaded++;
+      if (result.status === 'invalid' && raw.includes('"o79"')) counts.overflowRejected++;
       if (result.status === 'loaded') {
         counts.loaded++;
         try {
           expect(isBudgetState(result.state)).toBe(true);
+          expect(canBeTotalled(result.state)).toBe(true);
           expect(Object.keys(result.state).sort()).toEqual(['categories', 'expenses', 'incomeCents', 'month']);
           const totals = getTotals(result.state);
           for (const n of Object.values(totals)) {
@@ -484,6 +566,8 @@ describe('fuzz', () => {
     expect(counts.loaded).toBeGreaterThan(50);
     expect(counts.corrupt).toBeGreaterThan(500);
     expect(counts.unsupported).toBeGreaterThan(5);
+    expect(counts.overflowRejected).toBeGreaterThan(20);
+    expect(counts.overflowLoaded).toBeGreaterThan(20);
   });
 
   it('is deterministic for a given seed', () => {

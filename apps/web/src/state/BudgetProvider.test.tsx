@@ -1,9 +1,9 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { StrictMode, type ReactElement, useEffect } from 'react';
 import { renderToString } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { type BudgetState, createInitialState } from '@/lib/budget';
+import { type BudgetState, MAX_CENTS, createInitialState } from '@/lib/budget';
 import { SCENARIO } from '@/test/fixtures';
 import { createMemoryStorage } from '@/test/memoryStorage';
 import { renderWithBudget } from '@/test/renderWithBudget';
@@ -595,5 +595,337 @@ describe('StrictMode', () => {
     await screen.findByText('status: ready');
     expect(shownState()).toEqual(createInitialState('2026-11'));
     expect(storage.setItemCalls).toBe(0);
+  });
+});
+
+const TOO_LARGE = 'That change would make a total too large.';
+
+function bigCategories(n: number): BudgetState {
+  return {
+    month: '2026-11',
+    incomeCents: 0,
+    categories: Array.from({ length: n }, (_v, i) => ({ id: `c${i}`, name: `Cat ${i}`, plannedCents: MAX_CENTS })),
+    expenses: [],
+  };
+}
+
+function bigExpenses(n: number): BudgetState {
+  return {
+    month: '2026-11',
+    incomeCents: 0,
+    categories: [{ id: 'c0', name: 'Cat', plannedCents: 0 }],
+    expenses: Array.from({ length: n }, (_v, i) => ({
+      id: `x${i}`,
+      categoryId: 'c0',
+      amountCents: MAX_CENTS,
+      note: '',
+      date: '2026-11-10',
+    })),
+  };
+}
+
+describe('totals-safe actions', () => {
+  it('addCategory that would overflow the planned total throws the exact RangeError and changes nothing', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigCategories(90)) });
+    await mount({ storage });
+    const before = ready().state;
+    const calls = storage.setItemCalls;
+    const raw = storage.dump()[STORAGE_KEY];
+    const { actions } = ready();
+    let thrown: unknown;
+    try {
+      actions.addCategory({ name: 'One too many', plannedCents: MAX_CENTS });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(RangeError);
+    expect((thrown as RangeError).message).toBe(TOO_LARGE);
+    expect(ready().state).toBe(before);
+    expect(storage.setItemCalls).toBe(calls);
+    expect(storage.dump()[STORAGE_KEY]).toBe(raw);
+  });
+
+  it('addExpense that would overflow the spent total throws the exact RangeError and changes nothing', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigExpenses(90)) });
+    await mount({ storage });
+    const before = ready().state;
+    const calls = storage.setItemCalls;
+    let thrown: unknown;
+    try {
+      ready().actions.addExpense({ categoryId: 'c0', amountCents: MAX_CENTS, note: '', date: '2026-11-11' });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(RangeError);
+    expect((thrown as RangeError).message).toBe(TOO_LARGE);
+    expect(ready().state).toBe(before);
+    expect(storage.setItemCalls).toBe(calls);
+  });
+
+  it('a change that stays safe still works afterwards, including one exactly at the limit', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigCategories(89)) });
+    await mount({ storage });
+    expect(() => ready().actions.addCategory({ name: 'Over', plannedCents: MAX_CENTS * 2 })).toThrow();
+    act(() => {
+      ready().actions.addCategory({ name: 'Last safe', plannedCents: MAX_CENTS });
+    });
+    expect(ready().state.categories).toHaveLength(90);
+    expect(storage.setItemCalls).toBe(1);
+    expect(() => ready().actions.addCategory({ name: 'Too much', plannedCents: MAX_CENTS })).toThrow(TOO_LARGE);
+    act(() => ready().actions.setIncome(5));
+    expect(ready().state.incomeCents).toBe(5);
+    expect(storage.setItemCalls).toBe(2);
+  });
+
+  it('an overflowing action in the same act as a valid one keeps only the valid one', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigCategories(90)) });
+    await mount({ storage });
+    act(() => {
+      const { actions } = ready();
+      expect(() => actions.addCategory({ name: 'Boom', plannedCents: MAX_CENTS })).toThrow(RangeError);
+      actions.setIncome(9);
+    });
+    expect(ready().state.incomeCents).toBe(9);
+    expect(ready().state.categories).toHaveLength(90);
+  });
+
+  it('a stored state that cannot be totalled is not loaded: initial state, invalid, untouched', async () => {
+    const raw = JSON.stringify({ version: 1, state: bigCategories(91) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: raw });
+    await mount({ storage });
+    expect(screen.getByTestId('load')).toHaveTextContent('invalid');
+    expect(shownState()).toEqual(createInitialState('2026-11'));
+    expect(storage.setItemCalls).toBe(0);
+    expect(storage.dump()[STORAGE_KEY]).toBe(raw);
+  });
+});
+
+describe('no-op actions', () => {
+  it('do not save, keep garbage byte-identical and keep the state object identical; a real change then overwrites', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: 'garbage' });
+    await mount({ storage });
+    const before = ready().state;
+    act(() => {
+      const { actions } = ready();
+      actions.deleteExpense('nope');
+      actions.removeCategory('nope');
+      actions.updateCategory('nope', { name: 'x' });
+    });
+    expect(storage.setItemCalls).toBe(0);
+    expect(storage.dump()[STORAGE_KEY]).toBe('garbage');
+    expect(ready().state).toBe(before);
+    expect(ready().savedDataReplaced).toBe(false);
+    act(() => ready().actions.setIncome(3));
+    expect(storage.setItemCalls).toBe(1);
+    expect(storage.dump()[STORAGE_KEY]).not.toBe('garbage');
+    expect(ready().savedDataReplaced).toBe(true);
+  });
+
+  it('each no-op alone does not write (loaded SCENARIO)', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    await mount({ storage });
+    const before = ready().state;
+    for (const run of [
+      () => ready().actions.deleteExpense('nope'),
+      () => ready().actions.removeCategory('nope'),
+      () => ready().actions.updateCategory('nope', { name: 'x' }),
+    ]) {
+      act(run);
+      expect(storage.setItemCalls).toBe(0);
+      expect(ready().state).toBe(before);
+    }
+  });
+});
+
+describe('savedDataReplaced', () => {
+  it('invalid load: false at first, true after the first successful save, stays true', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: 'garbage' });
+    await mount({ storage });
+    expect(ready().loadStatus).toBe('invalid');
+    expect(ready().savedDataReplaced).toBe(false);
+    act(() => ready().actions.setIncome(1));
+    expect(ready().savedDataReplaced).toBe(true);
+    expect(ready().loadStatus).toBe('invalid');
+    act(() => ready().actions.setIncome(2));
+    expect(ready().savedDataReplaced).toBe(true);
+  });
+
+  it('invalid load with an unsupported version behaves the same', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: JSON.stringify({ version: 2, state: {} }) });
+    await mount({ storage });
+    expect(ready().savedDataReplaced).toBe(false);
+    act(() => ready().actions.setIncome(1));
+    expect(ready().savedDataReplaced).toBe(true);
+  });
+
+  it('a failing save does not flip it, and a later successful save does', async () => {
+    let fail = true;
+    const inner = createMemoryStorage({ [STORAGE_KEY]: 'garbage' });
+    const storage = {
+      getItem: (k: string) => inner.getItem(k),
+      removeItem: (k: string) => inner.removeItem(k),
+      setItem: (k: string, v: string) => {
+        if (fail) throw new DOMException('Quota', 'QuotaExceededError');
+        inner.setItem(k, v);
+      },
+    };
+    await mount({ storage });
+    act(() => ready().actions.setIncome(1));
+    expect(ready().state.incomeCents).toBe(1);
+    expect(ready().savedDataReplaced).toBe(false);
+    expect(inner.dump()[STORAGE_KEY]).toBe('garbage');
+    fail = false;
+    act(() => ready().actions.setIncome(2));
+    expect(ready().savedDataReplaced).toBe(true);
+  });
+
+  it('stays true when a later save fails', async () => {
+    let fail = false;
+    const inner = createMemoryStorage({ [STORAGE_KEY]: 'garbage' });
+    const storage = {
+      getItem: (k: string) => inner.getItem(k),
+      removeItem: (k: string) => inner.removeItem(k),
+      setItem: (k: string, v: string) => {
+        if (fail) throw new DOMException('Quota', 'QuotaExceededError');
+        inner.setItem(k, v);
+      },
+    };
+    await mount({ storage });
+    act(() => ready().actions.setIncome(1));
+    expect(ready().savedDataReplaced).toBe(true);
+    fail = true;
+    act(() => ready().actions.setIncome(2));
+    expect(ready().savedDataReplaced).toBe(true);
+  });
+
+  it('throwOnSet never flips it on an invalid load', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: 'garbage' }, { throwOnSet: true });
+    await mount({ storage });
+    act(() => ready().actions.setIncome(1));
+    act(() => ready().actions.setIncome(2));
+    expect(ready().savedDataReplaced).toBe(false);
+  });
+
+  it('stays false for loaded, empty and unavailable even after saves', async () => {
+    const loaded = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    await mount({ storage: loaded });
+    expect(ready().savedDataReplaced).toBe(false);
+    act(() => ready().actions.setIncome(1));
+    expect([ready().loadStatus, ready().savedDataReplaced]).toEqual(['loaded', false]);
+  });
+
+  it('stays false for an empty load after saves', async () => {
+    await mount({ storage: createMemoryStorage() });
+    act(() => ready().actions.setIncome(1));
+    expect([ready().loadStatus, ready().savedDataReplaced]).toEqual(['empty', false]);
+  });
+
+  it('stays false for an unavailable load after saves, with storage null or throwing', async () => {
+    await mount({ storage: createMemoryStorage({}, { throwOnGet: true }) });
+    act(() => ready().actions.setIncome(1));
+    expect([ready().loadStatus, ready().savedDataReplaced]).toEqual(['unavailable', false]);
+    cleanup();
+    // storage whose reads fail but whose writes succeed: saving works, the flag still stays false
+    const writable = {
+      getItem: () => {
+        throw new DOMException('denied', 'SecurityError');
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    await mount({ storage: writable });
+    act(() => ready().actions.setIncome(1));
+    expect([ready().loadStatus, ready().savedDataReplaced]).toEqual(['unavailable', false]);
+  });
+
+  it('a corrupt (overflowing) load also counts as invalid and flips after the first save', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: JSON.stringify({ version: 1, state: bigCategories(91) }) });
+    await mount({ storage });
+    expect(ready().savedDataReplaced).toBe(false);
+    act(() => ready().actions.setIncome(1));
+    expect(ready().savedDataReplaced).toBe(true);
+  });
+});
+
+describe('default id generator', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function mountDefaultIds(): Promise<void> {
+    latest0();
+    render(
+      <BudgetProvider storage={createMemoryStorage()} getToday={() => '2026-11-14'}>
+        <Probe />
+      </BudgetProvider>,
+    );
+    await screen.findByText('status: ready');
+  }
+  function latest0(): void {
+    probe.latest = null;
+  }
+
+  const addCategories = (n: number): string[] => {
+    const ids: string[] = [];
+    act(() => {
+      for (let i = 0; i < n; i++) ids.push(ready().actions.addCategory({ name: `C${i}`, plannedCents: 1 }));
+    });
+    return ids;
+  };
+
+  it('uses crypto.randomUUID when present', async () => {
+    const randomUUID = vi.fn(() => 'uuid-from-crypto');
+    vi.stubGlobal('crypto', { randomUUID, getRandomValues: () => { throw new Error('should not be used'); } });
+    await mountDefaultIds();
+    expect(addCategories(1)).toEqual(['uuid-from-crypto']);
+    expect(randomUUID).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to 16 random bytes as 32 lowercase hex characters when randomUUID is missing', async () => {
+    const getRandomValues = vi.fn(<T extends ArrayBufferView>(array: T): T => {
+      const bytes = array as unknown as Uint8Array;
+      for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+      return array;
+    });
+    vi.stubGlobal('crypto', { getRandomValues });
+    await mountDefaultIds();
+    const ids = addCategories(200);
+    expect(getRandomValues).toHaveBeenCalledTimes(200);
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{32}$/);
+    expect(new Set(ids).size).toBe(200);
+  });
+
+  it('asks getRandomValues for exactly 16 bytes and hex-encodes them in order, zero padded', async () => {
+    const getRandomValues = vi.fn(<T extends ArrayBufferView>(array: T): T => {
+      const bytes = array as unknown as Uint8Array;
+      expect(bytes).toBeInstanceOf(Uint8Array);
+      expect(bytes.length).toBe(16);
+      bytes.set([0, 1, 15, 16, 255, 171, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
+      return array;
+    });
+    vi.stubGlobal('crypto', { getRandomValues });
+    await mountDefaultIds();
+    expect(addCategories(1)).toEqual(['00010f10ffab0000000000000000' + '0002']);
+  });
+
+  it('falls back to non-empty unique strings when crypto is undefined', async () => {
+    vi.stubGlobal('crypto', undefined);
+    await mountDefaultIds();
+    const ids = addCategories(1000);
+    for (const id of ids) {
+      expect(typeof id).toBe('string');
+      expect(id.length).toBeGreaterThan(0);
+    }
+    expect(new Set(ids).size).toBe(1000);
+  });
+
+  it('keeps ids unique across two separate mounts when crypto is undefined', async () => {
+    vi.stubGlobal('crypto', undefined);
+    await mountDefaultIds();
+    const first = addCategories(5);
+    cleanup();
+    await mountDefaultIds();
+    const second = addCategories(5);
+    expect(new Set([...first, ...second]).size).toBe(10);
   });
 });
