@@ -1573,3 +1573,121 @@ describe('behaviour the task does not specify', () => {
     expect(categoryNameError(state, 'pets', 'b')).toBe('You already have a category called Pets');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression tests (review findings)
+// ---------------------------------------------------------------------------
+
+describe('updateCategory ignores undefined and unknown patch keys', () => {
+  function hasUndefinedValue(value: object): boolean {
+    return Object.values(value).some((v) => v === undefined);
+  }
+
+  it('{ name: undefined } leaves the name unchanged and later reads still work', () => {
+    const state = updateCategory(makeS(), RENT, { name: undefined });
+    const category = at(state.categories, 0);
+    expect(category).toEqual({ id: RENT, name: 'Rent', plannedCents: 150000 });
+    expect(hasUndefinedValue(category)).toBe(false);
+    expect(categoryLabel(state, RENT)).toBe('Rent');
+    expect(categoryNameError(state, 'Pets')).toBeNull();
+    expect(categoryNameError(state, 'rent')).toBe('You already have a category called Rent');
+    expect(addCategory(state, { name: 'Pets', plannedCents: 0 }, 'pets').categories).toHaveLength(6);
+  });
+
+  it('{ plannedCents: undefined } leaves plannedCents unchanged and totals and summaries are still right', () => {
+    const state = updateCategory(makeS(), GROCERIES, { plannedCents: undefined });
+    expect(hasUndefinedValue(at(state.categories, 1))).toBe(false);
+    expect(state).toEqual(makeS());
+    expect(getTotals(state)).toEqual(getTotals(makeS()));
+    expect(getTotals(state).plannedCents).toBe(227000);
+    expect(getCategorySummaries(state)).toEqual(getCategorySummaries(makeS()));
+  });
+
+  it('{ name: undefined, plannedCents: undefined } together change nothing', () => {
+    expect(updateCategory(makeS(), RENT, { name: undefined, plannedCents: undefined })).toEqual(makeS());
+  });
+
+  it('a defined value next to an undefined one is still applied', () => {
+    const state = updateCategory(makeS(), RENT, { name: undefined, plannedCents: 7 });
+    expect(at(state.categories, 0)).toEqual({ id: RENT, name: 'Rent', plannedCents: 7 });
+  });
+
+  it('a patch carrying an id never changes the id or moves the category (Category variable)', () => {
+    const whole: Category = { id: GROCERIES, name: 'Renamed', plannedCents: 5 };
+    const state = updateCategory(makeS(), RENT, whole);
+    expect(state.categories.map((c) => c.id)).toEqual([RENT, GROCERIES, TRANSPORT, UTILITIES, EATING_OUT]);
+    expect(at(state.categories, 0)).toEqual({ id: RENT, name: 'Renamed', plannedCents: 5 });
+    expect(at(state.categories, 1)).toEqual(at(makeS().categories, 1));
+  });
+
+  it('a patch carrying an id never changes the id (Partial<Category> variable)', () => {
+    const partial: Partial<Category> = { id: 'hijacked' };
+    const state = updateCategory(makeS(), RENT, partial);
+    expect(state).toEqual(makeS());
+    expect(categoryLabel(state, 'hijacked')).toBe('Removed category');
+    const withName: Partial<Category> = { id: 'hijacked', name: 'X' };
+    const state2 = updateCategory(makeS(), RENT, withName);
+    expect(at(state2.categories, 0)).toEqual({ id: RENT, name: 'X', plannedCents: 150000 });
+  });
+
+  it('extra unknown keys are ignored', () => {
+    const patch = { name: 'Y', colour: 'red', expenses: [1], __proto__x: 1 } as unknown as Parameters<typeof updateCategory>[2];
+    const state = updateCategory(makeS(), RENT, patch);
+    expect(at(state.categories, 0)).toEqual({ id: RENT, name: 'Y', plannedCents: 150000 });
+    expect(Object.keys(at(state.categories, 0)).sort()).toEqual(['id', 'name', 'plannedCents']);
+  });
+
+  it("falsy values are still applied: { name: '' } stores '' and { plannedCents: 0 } stores 0", () => {
+    const blank = updateCategory(makeS(), RENT, { name: '' });
+    expect(at(blank.categories, 0).name).toBe('');
+    const zero = updateCategory(makeS(), RENT, { plannedCents: 0 });
+    expect(at(zero.categories, 0).plannedCents).toBe(0);
+    expect(Object.is(at(zero.categories, 0).plannedCents, 0)).toBe(true);
+    const both = updateCategory(makeS(), RENT, { name: '', plannedCents: 0 });
+    expect(at(both.categories, 0)).toEqual({ id: RENT, name: '', plannedCents: 0 });
+  });
+
+  it('a JSON round trip of an updated state equals the state (no undefined keys)', () => {
+    let state = updateCategory(makeS(), RENT, { name: undefined });
+    state = updateCategory(state, GROCERIES, { plannedCents: undefined });
+    state = updateCategory(state, TRANSPORT, { name: '', plannedCents: 0 });
+    state = updateCategory(state, UTILITIES, { name: ' Bills ' });
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+    for (const category of state.categories) expect(hasUndefinedValue(category)).toBe(false);
+  });
+});
+
+describe('SUGGESTED_CATEGORIES is frozen but createInitialState copies are not', () => {
+  it('Object.isFrozen is true for the list and for each entry', () => {
+    expect(Object.isFrozen(SUGGESTED_CATEGORIES)).toBe(true);
+    for (const entry of SUGGESTED_CATEGORIES) expect(Object.isFrozen(entry)).toBe(true);
+  });
+
+  it('createInitialState results are not frozen and are independent copies', () => {
+    const a = createInitialState('2026-11');
+    const b = createInitialState('2026-11');
+    expect(Object.isFrozen(a)).toBe(false);
+    expect(Object.isFrozen(a.categories)).toBe(false);
+    for (const category of a.categories) expect(Object.isFrozen(category)).toBe(false);
+    const snapshot = structuredClone(SUGGESTED_CATEGORIES);
+    at(a.categories, 0).name = 'Mutated';
+    at(a.categories, 0).plannedCents = 9;
+    a.categories.push({ id: 'z', name: 'Z', plannedCents: 1 });
+    expect(at(b.categories, 0)).toEqual({ id: RENT, name: 'Rent', plannedCents: 0 });
+    expect(b.categories).toHaveLength(5);
+    expect(SUGGESTED_CATEGORIES).toEqual(snapshot);
+  });
+});
+
+describe('sumCents checks every input and every running total', () => {
+  it('a non-integer input after a large one throws RangeError', () => {
+    expectRangeError(() => sumCents([2 ** 52, 0.5]));
+  });
+  it('an unsafe input after a negative one throws RangeError', () => {
+    expectRangeError(() => sumCents([-10, Number.MAX_SAFE_INTEGER + 2]));
+  });
+  it('an intermediate overflow that a later negative would hide still throws RangeError', () => {
+    expectRangeError(() => sumCents([Number.MAX_SAFE_INTEGER, 2, -10]));
+    expectRangeError(() => sumCents([-Number.MAX_SAFE_INTEGER, -2, 10]));
+  });
+});
