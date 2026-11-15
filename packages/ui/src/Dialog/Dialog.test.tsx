@@ -1237,3 +1237,105 @@ describe("Dialog: StrictMode", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Dialog: title row is not a banner landmark", () => {
+  const LANDMARKS =
+    'header, footer, nav, main, aside, form, [role="banner"], [role="contentinfo"], [role="navigation"], [role="main"], [role="complementary"], [role="search"], [role="form"]';
+
+  it("the dialog contains no header element and no banner role", () => {
+    render(
+      <Dialog open onClose={() => {}} title="Edit budget" actions={twoActions}>
+        Body
+      </Dialog>,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelectorAll("header")).toHaveLength(0);
+    expect(dialog.querySelectorAll('[role="banner"]')).toHaveLength(0);
+    expect(screen.queryByRole("banner")).toBeNull();
+  });
+
+  it("the title row is a plain div holding the h2 first and the close button second", () => {
+    render(
+      <Dialog open onClose={() => {}} title="Edit budget">
+        Body
+      </Dialog>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Edit budget" });
+    const heading = screen.getByRole("heading", {
+      level: 2,
+      name: "Edit budget",
+    });
+    expect(dialog).toHaveAttribute("aria-labelledby", heading.id);
+    const row = heading.parentElement as HTMLElement;
+    expect(row.tagName).toBe("DIV");
+    expect(row.parentElement).toBe(dialog);
+    expect(row.children).toHaveLength(2);
+    expect(row.children[0]).toBe(heading);
+    expect(row.children[1]).toBe(screen.getByRole("button", { name: "Close" }));
+  });
+
+  it("contains no landmark-mapping element other than the scrollable body region", () => {
+    const sizes = { scrollHeight: 500, clientHeight: 200 };
+    for (const prop of ["scrollHeight", "clientHeight"] as const) {
+      Object.defineProperty(HTMLElement.prototype, prop, {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.getAttribute("data-part") === "body" ? sizes[prop] : 0;
+        },
+      });
+    }
+    try {
+      render(
+        <Dialog
+          open
+          onClose={() => {}}
+          title="Edit budget"
+          actions={twoActions}
+        >
+          Body
+        </Dialog>,
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(dialog.querySelectorAll(LANDMARKS)).toHaveLength(0);
+      const body = dialog.querySelector('[data-part="body"]');
+      expect(body).toHaveAttribute("role", "region");
+      expect(screen.getAllByRole("region")).toEqual([body]);
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollHeight");
+      Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
+    }
+  });
+
+  it("with a page banner and an open dialog, the only header is the page banner and none has the dialog as ancestor", () => {
+    render(
+      <>
+        <header data-testid="page-banner">
+          <a href="/">Budget Kit</a>
+        </header>
+        <main>
+          <Dialog
+            open
+            onClose={() => {}}
+            title="Edit budget"
+            actions={twoActions}
+          >
+            Body
+          </Dialog>
+        </main>
+      </>,
+    );
+    const dialog = screen.getByRole("dialog");
+    const headers = Array.from(document.querySelectorAll("header"));
+    expect(headers).toEqual([screen.getByTestId("page-banner")]);
+    for (const h of headers) {
+      expect(h.contains(dialog)).toBe(false);
+      expect(dialog.contains(h)).toBe(false);
+    }
+    expect(dialog.closest("header")).toBeNull();
+    expect(
+      Array.from(document.querySelectorAll("header")).filter((h) =>
+        dialog.contains(h),
+      ),
+    ).toHaveLength(0);
+  });
+});
