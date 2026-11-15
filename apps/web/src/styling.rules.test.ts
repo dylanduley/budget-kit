@@ -38,6 +38,8 @@ describe('the scan sees the app', () => {
       'features/spending/SpendingPage.tsx',
       'features/plan/PlanPage.tsx',
       'features/history/HistoryPage.tsx',
+      'features/history/MonthsTable.tsx',
+      'features/history/DeleteAllData.tsx',
       'features/dashboard/Dashboard.tsx',
       'features/expenses/AddExpense.tsx',
       'features/expenses/ExpenseList.tsx',

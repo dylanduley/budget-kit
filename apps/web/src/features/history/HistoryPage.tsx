@@ -2,6 +2,8 @@
 
 import type { ReactElement } from 'react';
 
+import { DeleteAllData } from '@/features/history/DeleteAllData';
+import { MonthsTable } from '@/features/history/MonthsTable';
 import { useBudget } from '@/state/BudgetProvider';
 
 export function HistoryPage(): ReactElement {
@@ -19,7 +21,8 @@ export function HistoryPage(): ReactElement {
   return (
     <>
       <h1 className="text-2xl font-semibold text-text">History</h1>
-      <p>Your months will be listed here.</p>
+      <MonthsTable />
+      <DeleteAllData />
     </>
   );
 }

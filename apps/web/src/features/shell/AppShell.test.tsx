@@ -118,9 +118,13 @@ describe('shell structure on every route', () => {
     for (const inner of document.querySelectorAll('main header')) expect(inner.closest('section')).not.toBeNull();
   });
 
-  it('History shows its current placeholder line', () => {
+  it('History shows the Start over card', () => {
     renderApp({ state: SCENARIO, path: '/history' });
-    expect(screen.getByText('Your months will be listed here.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'History' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Months' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Start over' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete all data' })).toBeInTheDocument();
+    expect(screen.queryByText('Your months will be listed here.')).not.toBeInTheDocument();
   });
 
   it('Plan shows the income field of the temporary setup form', () => {
