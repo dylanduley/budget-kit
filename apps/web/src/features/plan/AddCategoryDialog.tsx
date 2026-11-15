@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react';
 import type { FormEvent, ReactElement, RefObject } from 'react';
 
 import { Button, Dialog, MoneyField, TextField } from '@budget-kit/ui';
+import type { MoneyParseResult } from '@budget-kit/ui';
 
 import { categoryNameError } from '@/lib/budget';
 import { TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
@@ -29,6 +30,8 @@ function AddCategoryForm({ formId, nameRef, onClose }: AddCategoryFormProps): Re
   const [nameError, setNameError] = useState<string | null>(null);
   const [plannedError, setPlannedError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [plannedInvalid, setPlannedInvalid] = useState(false);
+  const plannedRef = useRef<HTMLInputElement>(null);
   if (budget.status !== 'ready') return null;
   const { state, actions } = budget;
 
@@ -40,6 +43,10 @@ function AddCategoryForm({ formId, nameRef, onClose }: AddCategoryFormProps): Re
     setActionError(null);
     if (problem !== null) {
       nameRef.current?.focus();
+      return;
+    }
+    if (plannedInvalid) {
+      plannedRef.current?.focus();
       return;
     }
     try {
@@ -67,12 +74,15 @@ function AddCategoryForm({ formId, nameRef, onClose }: AddCategoryFormProps): Re
         }}
       />
       <MoneyField
+        ref={plannedRef}
         label="Planned (USD)"
         hint="Optional. Leave empty for $0.00."
         value={planned}
         error={plannedError ?? undefined}
-        onChange={(cents) => {
+        validateOn="change"
+        onChange={(cents, result: MoneyParseResult) => {
           setPlanned(cents);
+          setPlannedInvalid(!result.ok);
           setPlannedError(null);
           setActionError(null);
         }}

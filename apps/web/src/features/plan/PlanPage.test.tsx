@@ -1,6 +1,7 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import type { UserEvent } from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
@@ -81,6 +82,14 @@ function stored(result: { readStored(): BudgetState | null }): BudgetState {
   const state = result.readStored();
   if (state === null) throw new Error('nothing stored');
   return state;
+}
+async function selectAll(user: UserEvent, input: HTMLElement): Promise<void> {
+  await user.click(input);
+  await user.keyboard('{Control>}a{/Control}');
+}
+async function replaceWith(user: UserEvent, input: HTMLElement, text: string): Promise<void> {
+  await selectAll(user, input);
+  await user.keyboard(text);
 }
 const rows = (): HTMLElement[] =>
   within(screen.getByRole('region', { name: 'Categories' }))
@@ -454,7 +463,7 @@ describe('Add category dialog', () => {
     await user.click(save());
     expect(errorText(dPlanned())).toBe(TOTAL_TOO_LARGE_MESSAGE);
     expect(actions.addCategory).toHaveBeenCalledWith({ name: 'Pets', plannedCents: 2500 });
-    await user.type(dPlanned(), '1');
+    await replaceWith(user, dPlanned(), '1');
     expect(errorOf(dPlanned())).toBeNull();
     await user.click(save());
     expect(actions.addCategory).toHaveBeenCalledTimes(2);
@@ -518,17 +527,19 @@ describe('income card', () => {
     expect(result.readStored()?.incomeCents).toBe(0);
   });
 
-  it('invalid 12.345 shows a field error on blur and 0 is stored', async () => {
+  it('invalid 12.345 shows a field error and keeps the last valid keystroke (1234) instead of storing 0', async () => {
     const result = renderApp({ path: '/plan' });
     await result.user.type(incomeField(), '12.345');
+    expect(errorOf(incomeField())).not.toBeNull();
+    expect(result.readStored()?.incomeCents).toBe(1234);
     await result.user.tab();
     expect(errorOf(incomeField())).not.toBeNull();
-    expect(result.readStored()?.incomeCents).toBe(0);
+    expect(result.readStored()?.incomeCents).toBe(1234);
   });
 
   it('total too large is shown on the income field; generic for other errors; clears on next edit', async () => {
     const a = renderWithFakeBudget(<PlanPage />, { state: SCENARIO, actions: allThrow(tooLarge) });
-    await a.user.type(incomeField(), '5');
+    await replaceWith(a.user, incomeField(), '5');
     expect(errorText(incomeField())).toBe(TOTAL_TOO_LARGE_MESSAGE);
     expect(actionErrors()).toHaveLength(0);
     a.unmount();
@@ -536,7 +547,7 @@ describe('income card', () => {
       state: SCENARIO,
       actions: { setIncome: failOnce(new Error('boom')) },
     });
-    await b.user.type(incomeField(), '5');
+    await replaceWith(b.user, incomeField(), '5');
     expect(errorText(incomeField())).toBe(GENERIC);
     await b.user.type(incomeField(), '6');
     expect(errorOf(incomeField())).toBeNull();
@@ -675,13 +686,13 @@ describe('category rows with SCENARIO', () => {
 
   it('planned edit failing: total too large and generic land on that row planned field only', async () => {
     const a = renderWithFakeBudget(<PlanPage />, { state: SCENARIO, actions: allThrow(tooLarge) });
-    await a.user.type(plannedField(1), '1');
+    await replaceWith(a.user, plannedField(1), '1');
     expect(errorText(plannedField(1))).toBe(TOTAL_TOO_LARGE_MESSAGE);
     expect(errorOf(plannedField(2))).toBeNull();
     expect(actionErrors()).toHaveLength(0);
     a.unmount();
     const b = renderWithFakeBudget(<PlanPage />, { state: SCENARIO, actions: allThrow(boom) });
-    await b.user.type(plannedField(3), '1');
+    await replaceWith(b.user, plannedField(3), '1');
     expect(errorText(plannedField(3))).toBe(GENERIC);
   });
 });
@@ -960,5 +971,420 @@ describe('source rules for features/plan', () => {
         expect(lastTry > lastCatch && lastTry !== -1, `${f}: actions.${m[1]} not in try`).toBe(true);
       }
     }
+  });
+});
+
+describe('invalid money text is not saved (app task 26)', () => {
+  const INVALID = 'Enter an amount like 12.50';
+  const TOO_BIG = 'Amount is too large';
+  const NEGATIVE = "Amount can't be negative";
+
+  describe('income field', () => {
+    it('stray keystroke: 3,200.00x shows the error before blur, keeps 320000, saves nothing, and survives Tab', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      const before = result.storage.setItemCalls;
+      await result.user.type(incomeField(), 'x');
+      expect(incomeField()).toHaveValue('3,200.00x');
+      expect(errorText(incomeField())).toBe(INVALID);
+      expect(errorOf(incomeField())).toHaveAttribute('role', 'alert');
+      expect(incomeField()).toHaveAttribute('aria-invalid', 'true');
+      expect(incomeField()).toHaveAccessibleDescription(new RegExp(INVALID));
+      expect(incomeField()).toHaveFocus();
+      expect(stored(result).incomeCents).toBe(320000);
+      expect(result.storage.setItemCalls).toBe(before);
+      await result.user.tab();
+      expect(incomeField()).toHaveValue('3,200.00x');
+      expect(errorText(incomeField())).toBe(INVALID);
+      expect(stored(result).incomeCents).toBe(320000);
+      expect(result.storage.setItemCalls).toBe(before);
+    });
+
+    it('fixing it: Backspace clears the error and aria-invalid without blur, field shows 3,200.00, stored 320000', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await result.user.type(incomeField(), 'x');
+      await result.user.keyboard('{Backspace}');
+      expect(incomeField()).toHaveValue('3,200.00');
+      expect(errorOf(incomeField())).toBeNull();
+      expect(incomeField()).not.toHaveAttribute('aria-invalid', 'true');
+      expect(stored(result).incomeCents).toBe(320000);
+    });
+
+    it.each([
+      ['abc', INVALID, 'paste'],
+      ['1,2,3', INVALID, 'paste'],
+      ['1000000000000', TOO_BIG, 'paste'],
+      ['1234567890123', TOO_BIG, 'paste'],
+      ['-', INVALID, 'type'],
+      ['-5', NEGATIVE, 'type'],
+    ] as const)('example: select all and enter %s shows the error at once and stored stays 320000', async (text, message, how) => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      const before = result.storage.setItemCalls;
+      await selectAll(result.user, incomeField());
+      if (how === 'paste') await result.user.paste(text);
+      else await result.user.keyboard(text);
+      expect(incomeField()).toHaveValue(text);
+      expect(errorText(incomeField())).toBe(message);
+      expect(incomeField()).toHaveAttribute('aria-invalid', 'true');
+      expect(stored(result).incomeCents).toBe(320000);
+      expect(result.storage.setItemCalls).toBe(before);
+    });
+
+    it('invalid 12.345 typed over a saved value keeps the last valid keystroke (1234) and shows the error, never 0', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(result.user, incomeField(), '12.345');
+      expect(incomeField()).toHaveValue('12.345');
+      expect(errorText(incomeField())).toBe(INVALID);
+      expect(stored(result).incomeCents).toBe(1234);
+    });
+
+    it('example: paste 1,2,3 and paste 1000000000000 over the saved income keep 320000 and write nothing', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      const before = result.storage.setItemCalls;
+      await selectAll(result.user, incomeField());
+      await result.user.paste('1,2,3');
+      expect(incomeField()).toHaveValue('1,2,3');
+      expect(errorText(incomeField())).toBe(INVALID);
+      await selectAll(result.user, incomeField());
+      await result.user.paste('1000000000000');
+      expect(incomeField()).toHaveValue('1000000000000');
+      expect(errorText(incomeField())).toBe(TOO_BIG);
+      expect(stored(result).incomeCents).toBe(320000);
+      expect(result.storage.setItemCalls).toBe(before);
+    });
+
+    it('example: select all and type 45 stores 4500 with no error; clearing stores 0 with no error', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(result.user, incomeField(), '45');
+      expect(incomeField()).toHaveValue('45');
+      expect(errorOf(incomeField())).toBeNull();
+      expect(stored(result).incomeCents).toBe(4500);
+      await result.user.clear(incomeField());
+      expect(incomeField()).toHaveValue('');
+      expect(errorOf(incomeField())).toBeNull();
+      expect(incomeField()).not.toHaveAttribute('aria-invalid', 'true');
+      expect(stored(result).incomeCents).toBe(0);
+    });
+
+    it('recovering from invalid to valid text clears the error and saves the new amount', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(result.user, incomeField(), 'abc');
+      expect(errorText(incomeField())).toBe(INVALID);
+      await replaceWith(result.user, incomeField(), '77.5');
+      expect(errorOf(incomeField())).toBeNull();
+      expect(stored(result).incomeCents).toBe(7750);
+    });
+
+    it('invalid text keeps the previously stored value even when it was typed from empty (no 0 written)', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(result.user, incomeField(), '45');
+      await result.user.type(incomeField(), 'z');
+      expect(errorText(incomeField())).toBe(INVALID);
+      expect(incomeField()).toHaveValue('45z');
+      expect(stored(result).incomeCents).toBe(4500);
+    });
+
+    it('refresh restores the saved amount with no error', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await result.user.type(incomeField(), 'x');
+      result.unmount();
+      const again = renderApp({ state: stored(result), storage: result.storage, path: '/plan' });
+      expect(incomeField()).toHaveValue('3,200.00');
+      expect(errorOf(incomeField())).toBeNull();
+      expect(stored(again).incomeCents).toBe(320000);
+    });
+
+    it('invalid income never calls setIncome; the next valid text calls it once with 500', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, { state: SCENARIO });
+      await replaceWith(user, incomeField(), 'abc');
+      expect(actions.setIncome).toHaveBeenCalledTimes(0);
+      await replaceWith(user, incomeField(), '5');
+      expect(actions.setIncome).toHaveBeenCalledTimes(1);
+      expect(actions.setIncome).toHaveBeenCalledWith(500);
+    });
+
+    it('action error then invalid text: the library error replaces it, no extra call, and Backspace saves again and shows the action error', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, {
+        state: SCENARIO,
+        actions: { setIncome: tooLarge },
+      });
+      await replaceWith(user, incomeField(), '5');
+      expect(errorText(incomeField())).toBe(TOTAL_TOO_LARGE_MESSAGE);
+      expect(actions.setIncome).toHaveBeenCalledTimes(1);
+      await user.keyboard('x');
+      expect(incomeField()).toHaveValue('5x');
+      expect(errorText(incomeField())).toBe(INVALID);
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(actions.setIncome).toHaveBeenCalledTimes(1);
+      await user.keyboard('{Backspace}');
+      expect(actions.setIncome).toHaveBeenCalledTimes(2);
+      expect(actions.setIncome).toHaveBeenLastCalledWith(500);
+      expect(errorText(incomeField())).toBe(TOTAL_TOO_LARGE_MESSAGE);
+    });
+
+    it('totals elsewhere unchanged: a stray x then Overview still shows Income $3,200.00 and Left to spend $1,505.18', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await result.user.type(incomeField(), 'x');
+      await result.user.click(screen.getByRole('link', { name: 'Overview' }));
+      const stat = (label: string): HTMLElement =>
+        screen.getByText(label, { selector: '[data-part="label"]' }).parentElement as HTMLElement;
+      expect(within(stat('Income')).getByText('$3,200.00')).toBeInTheDocument();
+      expect(within(stat('Left to spend')).getByText('$1,505.18')).toBeInTheDocument();
+      expect(within(stat('Spent')).getByText('$1,694.82')).toBeInTheDocument();
+    });
+  });
+
+  describe('category planned fields', () => {
+    it.each([
+      ['abc', INVALID],
+      ['1,2,3', INVALID],
+      ['12.345', INVALID],
+      ['1000000000000', TOO_BIG],
+    ])('Rent planned: select all and paste %s shows the error before blur and saves nothing', async (text, message) => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      const before = result.storage.setItemCalls;
+      await selectAll(result.user, plannedField(1));
+      await result.user.paste(text);
+      expect(plannedField(1)).toHaveValue(text);
+      expect(errorText(plannedField(1))).toBe(message);
+      expect(plannedField(1)).toHaveAttribute('aria-invalid', 'true');
+      expect(stored(result).categories[0]?.plannedCents).toBe(150000);
+      expect(result.storage.setItemCalls).toBe(before);
+      await result.user.tab();
+      expect(plannedField(1)).toHaveValue(text);
+      expect(errorText(plannedField(1))).toBe(message);
+      expect(stored(result).categories[0]?.plannedCents).toBe(150000);
+    });
+
+    it('invalid text in one row leaves every other row and the income untouched', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(result.user, plannedField(3), 'abc');
+      expect(errorText(plannedField(3))).toBe(INVALID);
+      expect(errorOf(plannedField(2))).toBeNull();
+      expect(stored(result).categories.map((c) => c.plannedCents)).toEqual([150000, 40000, 12000, 15000, 10000]);
+      expect(stored(result).incomeCents).toBe(320000);
+    });
+
+    it('a stray keystroke in a saved planned field keeps its stored cents, and Backspace clears the error', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await result.user.type(plannedField(2), 'x');
+      expect(plannedField(2)).toHaveValue('400.00x');
+      expect(errorText(plannedField(2))).toBe(INVALID);
+      expect(stored(result).categories[1]?.plannedCents).toBe(40000);
+      await result.user.keyboard('{Backspace}');
+      expect(errorOf(plannedField(2))).toBeNull();
+      expect(stored(result).categories[1]?.plannedCents).toBe(40000);
+    });
+
+    it('recovering to valid text clears the error and saves exactly that row', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(result.user, plannedField(4), '-');
+      expect(errorText(plannedField(4))).toBe(INVALID);
+      await replaceWith(result.user, plannedField(4), '82.47');
+      expect(errorOf(plannedField(4))).toBeNull();
+      expect(stored(result).categories.map((c) => c.plannedCents)).toEqual([150000, 40000, 12000, 8247, 10000]);
+    });
+
+    it('clearing a planned field is empty, not invalid: no error and 0 stored for that row only', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await result.user.clear(plannedField(2));
+      expect(errorOf(plannedField(2))).toBeNull();
+      expect(stored(result).categories.map((c) => c.plannedCents)).toEqual([150000, 0, 12000, 15000, 10000]);
+    });
+
+    it('typing 1,200 into a cleared Category 2: 100, 100, 100, 100, then 120000, with errors on the half-typed steps', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await result.user.clear(plannedField(2));
+      const cents = (): number | undefined => stored(result).categories[1]?.plannedCents;
+      await result.user.keyboard('1');
+      expect(cents()).toBe(100);
+      expect(errorOf(plannedField(2))).toBeNull();
+      for (const [key, shown] of [
+        [',', '1,'],
+        ['2', '1,2'],
+        ['0', '1,20'],
+      ] as const) {
+        await result.user.keyboard(key);
+        expect(plannedField(2)).toHaveValue(shown);
+        expect(errorText(plannedField(2))).toBe(INVALID);
+        expect(cents()).toBe(100);
+      }
+      await result.user.keyboard('0');
+      expect(plannedField(2)).toHaveValue('1,200');
+      expect(errorOf(plannedField(2))).toBeNull();
+      expect(cents()).toBe(120000);
+    });
+
+    it('invalid planned text never calls updateCategory; the next valid text calls it once', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, { state: SCENARIO });
+      await replaceWith(user, plannedField(2), '-');
+      expect(actions.updateCategory).toHaveBeenCalledTimes(0);
+      await replaceWith(user, plannedField(2), '5');
+      expect(actions.updateCategory).toHaveBeenCalledTimes(1);
+      expect(actions.updateCategory).toHaveBeenCalledWith('suggested-groceries', { plannedCents: 500 });
+    });
+
+    it('a per-row action error (total too large) is replaced by the invalid-text error and returns on the next valid edit', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, {
+        state: SCENARIO,
+        actions: { updateCategory: tooLarge },
+      });
+      await replaceWith(user, plannedField(1), '1');
+      expect(errorText(plannedField(1))).toBe(TOTAL_TOO_LARGE_MESSAGE);
+      await user.keyboard('x');
+      expect(errorText(plannedField(1))).toBe(INVALID);
+      expect(actions.updateCategory).toHaveBeenCalledTimes(1);
+      await user.keyboard('{Backspace}');
+      expect(actions.updateCategory).toHaveBeenCalledTimes(2);
+      expect(errorText(plannedField(1))).toBe(TOTAL_TOO_LARGE_MESSAGE);
+      expect(errorOf(plannedField(2))).toBeNull();
+    });
+  });
+
+  describe('Add category dialog', () => {
+    async function openWith(
+      result: { user: UserEvent },
+      name: string,
+      planned: string,
+    ): Promise<void> {
+      await result.user.click(addCategoryButton());
+      if (name !== '') await result.user.type(dName(), name);
+      if (planned !== '') await result.user.type(dPlanned(), planned);
+    }
+
+    it('invalid Planned shows its error before blur; Save keeps the dialog open, adds nothing, focuses Planned', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await openWith(result, 'Pets', 'abc');
+      expect(dPlanned()).toHaveAttribute('aria-invalid', 'true');
+      expect(errorText(dPlanned())).toBe(INVALID);
+      const before = result.storage.setItemCalls;
+      await result.user.click(save());
+      expect(dialog()).toBeInTheDocument();
+      expect(dName()).toHaveValue('Pets');
+      expect(dPlanned()).toHaveValue('abc');
+      expect(dPlanned()).toHaveFocus();
+      expect(errorText(dPlanned())).toBe(INVALID);
+      expect(stored(result).categories.map((c) => c.name)).not.toContain('Pets');
+      expect(result.storage.setItemCalls).toBe(before);
+    });
+
+    // jsdom cannot press Enter to submit (Save lives outside the form via form=), so submit the form directly.
+    it('form submit (the Enter path) with invalid Planned: dialog stays, nothing added, focus moves to Planned', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await openWith(result, 'Pets', 'abc');
+      await result.user.click(dName());
+      expect(dName()).toHaveFocus();
+      const before = result.storage.setItemCalls;
+      const form = dialog().querySelector('form');
+      expect(form).not.toBeNull();
+      fireEvent.submit(form as HTMLFormElement);
+      expect(dialog()).toBeInTheDocument();
+      expect(dName()).toHaveValue('Pets');
+      expect(dPlanned()).toHaveValue('abc');
+      expect(dPlanned()).toHaveFocus();
+      expect(errorText(dPlanned())).toBe(INVALID);
+      expect(stored(result).categories.map((c) => c.name)).not.toContain('Pets');
+      expect(result.storage.setItemCalls).toBe(before);
+    });
+
+    it('fake budget: abc and -5 never call addCategory; then 25 calls it once with Pets 2500 and closes', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, { state: SCENARIO });
+      await openWith({ user }, 'Pets', 'abc');
+      await user.click(save());
+      expect(actions.addCategory).toHaveBeenCalledTimes(0);
+      await replaceWith(user, dPlanned(), '-5');
+      expect(errorText(dPlanned())).toBe(NEGATIVE);
+      await user.click(save());
+      expect(actions.addCategory).toHaveBeenCalledTimes(0);
+      expect(dialog()).toBeInTheDocument();
+      await replaceWith(user, dPlanned(), '25');
+      expect(errorOf(dPlanned())).toBeNull();
+      await user.click(save());
+      expect(actions.addCategory).toHaveBeenCalledTimes(1);
+      expect(actions.addCategory).toHaveBeenCalledWith({ name: 'Pets', plannedCents: 2500 });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('too-large Planned text blocks Save too', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, { state: SCENARIO });
+      await openWith({ user }, 'Pets', '1000000000000');
+      expect(errorText(dPlanned())).toBe(TOO_BIG);
+      await user.click(save());
+      expect(actions.addCategory).toHaveBeenCalledTimes(0);
+      expect(dPlanned()).toHaveFocus();
+    });
+
+    it('name problem wins first: empty Name with Planned abc shows the Name error, focuses Name, adds nothing', async () => {
+      const { user, actions } = renderWithFakeBudget(<PlanPage />, { state: SCENARIO });
+      await openWith({ user }, '', 'abc');
+      await user.click(save());
+      expect(errorText(dName())).toBe('Enter a category name');
+      expect(dName()).toHaveFocus();
+      expect(actions.addCategory).toHaveBeenCalledTimes(0);
+    });
+
+    it('empty Planned still adds the category at $0.00 and closes the dialog', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await openWith(result, 'Pets', '');
+      await result.user.click(save());
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(stored(result).categories.find((c) => c.name === 'Pets')?.plannedCents).toBe(0);
+    });
+
+    it('Planned that was invalid then cleared is empty again and adds at 0', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await openWith(result, 'Pets', 'abc');
+      await result.user.clear(dPlanned());
+      expect(errorOf(dPlanned())).toBeNull();
+      await result.user.click(save());
+      expect(stored(result).categories.find((c) => c.name === 'Pets')?.plannedCents).toBe(0);
+    });
+
+    it('Planned 25 adds Pets at exactly 2500', async () => {
+      const result = renderApp({ state: SCENARIO, path: '/plan' });
+      await openWith(result, 'Pets', '25');
+      await result.user.click(save());
+      expect(stored(result).categories.find((c) => c.name === 'Pets')?.plannedCents).toBe(2500);
+    });
+  });
+
+  describe('unchanged parts', () => {
+    it('AddExpense and expenseForm sources are untouched since the plan commit', () => {
+      const dir = join(__dirname, '..', 'expenses');
+      expect(readFileSync(join(dir, 'AddExpense.tsx'), 'utf8')).not.toMatch(/validateOn/);
+      expect(readFileSync(join(dir, 'expenseForm.ts'), 'utf8')).not.toMatch(/validateOn/);
+    });
+
+    it('README states the new behaviour and the old sentence is gone', () => {
+      const readme = readFileSync(join(__dirname, '..', '..', '..', '..', '..', 'docs', 'tasks', 'app', 'README.md'), 'utf8');
+      expect(readme).toContain('invalid text is not saved and shows the library error at once (app task 26)');
+      expect(readme).not.toContain('empty or invalid income/planned stores 0');
+    });
+  });
+
+  describe('accessibility', () => {
+    it('axe: income showing 3,200.00x and its error', async () => {
+      const { user } = renderApp({ state: SCENARIO, path: '/plan' });
+      await user.type(incomeField(), 'x');
+      expect(errorText(incomeField())).toBe(INVALID);
+      await expectNoAxeViolations();
+    });
+
+    it('axe: a planned row with invalid text after blur', async () => {
+      const { user } = renderApp({ state: SCENARIO, path: '/plan' });
+      await replaceWith(user, plannedField(1), '1,2,3');
+      await user.tab();
+      expect(errorText(plannedField(1))).toBe(INVALID);
+      await expectNoAxeViolations();
+    });
+
+    it('axe: Add category dialog open showing the Planned error after Save', async () => {
+      const { user } = renderApp({ state: SCENARIO, path: '/plan' });
+      await user.click(addCategoryButton());
+      await user.type(dName(), 'Pets');
+      await user.type(dPlanned(), 'abc');
+      await user.click(save());
+      expect(errorText(dPlanned())).toBe(INVALID);
+      await expectNoAxeViolations();
+    });
   });
 });
