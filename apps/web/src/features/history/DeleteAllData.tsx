@@ -17,7 +17,7 @@ export function DeleteAllData(): ReactElement | null {
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const confirmationRef = useRef<HTMLParagraphElement | null>(null);
 
-  // Runs after the dialog's own focus return, so the confirmation keeps focus.
+  // The Dialog is mounted only while open: its unmount cleanup returns focus before this effect runs.
   useEffect(() => {
     if (deleted) confirmationRef.current?.focus();
   }, [deleted]);
@@ -55,8 +55,9 @@ export function DeleteAllData(): ReactElement | null {
           Delete all data
         </Button>
       </div>
+      {open ? (
       <Dialog
-        open={open}
+        open
         onClose={close}
         title="Delete all data?"
         initialFocusRef={cancelRef}
@@ -81,6 +82,7 @@ export function DeleteAllData(): ReactElement | null {
           </p>
         )}
       </Dialog>
+      ) : null}
     </Card>
   );
 }
