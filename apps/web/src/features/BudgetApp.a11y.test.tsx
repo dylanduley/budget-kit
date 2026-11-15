@@ -58,6 +58,7 @@ describe('axe finds no violations in every state', () => {
     document.body.appendChild(container);
     try {
       expect(container.querySelector('main')).not.toBeNull();
+      expect(container.querySelector('main')).toHaveAttribute('aria-busy', 'true');
       await expectNoAxeViolations();
     } finally {
       container.remove();
@@ -307,7 +308,7 @@ describe('layout.tsx', () => {
   });
 });
 
-describe('keyboard only: the first end-to-end scenario', () => {
+describe('keyboard reachability: the first end-to-end scenario', () => {
   async function tabTo(user: UserEvent, target: HTMLElement): Promise<void> {
     for (let i = 0; i < 300 && document.activeElement !== target; i += 1) await user.tab();
     expect(document.activeElement, `could not Tab to ${target.outerHTML.slice(0, 80)}`).toBe(target);
@@ -318,13 +319,12 @@ describe('keyboard only: the first end-to-end scenario', () => {
     await user.keyboard(text);
   }
 
+  // jsdom and user-event cannot drive a native select by keyboard, so the two selects (Category, Date)
+  // are Tab-reached but their value is set programmatically. Keyboard operation of those selects is
+  // covered only by the manual browser check, not by this test.
   async function choose(user: UserEvent, select: HTMLElement, label: string): Promise<void> {
     await tabTo(user, select);
-    await user.keyboard(label);
-    const chosen = (select as HTMLSelectElement).selectedOptions[0]?.textContent;
-    // user-event does not implement native select type-ahead in jsdom, so fall back to the select helper
-    // on the Tab-focused element (no pointer click on a button or link).
-    if (chosen !== label) await user.selectOptions(select, label);
+    await user.selectOptions(select, label);
     expect((select as HTMLSelectElement).selectedOptions[0]?.textContent).toBe(label);
   }
 
@@ -354,7 +354,7 @@ describe('keyboard only: the first end-to-end scenario', () => {
     return li?.textContent ?? '';
   }
 
-  it('sets up the month and adds three expenses without a pointer', async () => {
+  it('reaches and operates every field and button with the keyboard; selects are set programmatically because jsdom cannot drive a native select by keyboard', async () => {
     const { user, readStored } = await show({ today: '2026-11-14' });
     await typeInto(user, screen.getByLabelText('Monthly income (USD)'), '3200');
     const planned = ['1500', '400', '120', '150', '100'];

@@ -19,9 +19,8 @@ const TOO_LARGE = 'That change would make a total too large.';
 
 type View = RenderWithBudgetResult;
 
-async function ready(view: View): Promise<void> {
+async function ready(): Promise<void> {
   await screen.findByRole('heading', { level: 2, name: 'Summary' });
-  void view;
 }
 
 function region(name: string): HTMLElement {
@@ -113,7 +112,7 @@ async function deleteExpense(user: UserEvent, name: string): Promise<void> {
 
 async function startFresh(options: RenderWithBudgetOptions = { today: '2026-11-14' }): Promise<View> {
   const view = renderWithBudget(<BudgetApp />, options);
-  await ready(view);
+  await ready();
   return view;
 }
 
@@ -233,7 +232,7 @@ describe('refresh keeps everything', () => {
     };
     expect(Object.keys(before.fields).length).toBeGreaterThan(8);
     view.refresh();
-    await ready(view);
+    await ready();
     expect(labels.map((l) => statItem(l).textContent)).toEqual(before.stats);
     expect(expenseRows()).toEqual(before.rows);
     expect(fieldValues()).toEqual(before.fields);
@@ -293,7 +292,7 @@ describe('reset only after confirming', () => {
     expect(trigger).toHaveFocus();
 
     view.refresh();
-    await ready(view);
+    await ready();
     expect(screen.getByLabelText('Monthly income (USD)')).toHaveValue('');
     expectStat('Spent', '$0.00');
     expect(screen.getByText('No expenses yet this month.')).toBeInTheDocument();
@@ -354,7 +353,7 @@ describe('rollover', () => {
     expect(view.readStored()?.month).toBe('2026-12');
 
     view.refresh();
-    await ready(view);
+    await ready();
     expect(screen.getByText('Budget for December 2026')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'New month' })).not.toBeInTheDocument();
     expect(screen.queryByText(/It is now/)).not.toBeInTheDocument();
@@ -372,7 +371,7 @@ describe('category names', () => {
 
     expect(screen.getByLabelText('Category 2 name')).toHaveValue('Groceries');
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('alert').textContent ?? '').toMatch(/already|same|duplicate|used|exists/i);
+    expect(screen.getByRole('alert')).toHaveTextContent('You already have a category called Rent. The name is still Groceries.');
     expect(within(region('Spending by category')).getByRole('progressbar', { name: 'Groceries' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add expense' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add expense' });
@@ -412,7 +411,7 @@ describe('saved-data messages', () => {
     expect(storage.dump()[STORAGE_KEY]).not.toBe('not json');
 
     view.refresh();
-    await ready(view);
+    await ready();
     expect(screen.queryByText(INVALID)).not.toBeInTheDocument();
     expect(screen.queryByText(REPLACED)).not.toBeInTheDocument();
     expect(screen.queryByText(UNAVAILABLE)).not.toBeInTheDocument();
