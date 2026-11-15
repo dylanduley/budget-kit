@@ -6,6 +6,31 @@ const meta = {
   title: 'Components/Stat',
   component: Stat,
   args: { label: 'Groceries spent', value: '$1,200.00' },
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          'A single headline figure with a label, a value and an optional change against a plan or a previous period. Use it for one number; use Table for a list of numbers.',
+          '',
+          'The label, value and change are read in that order. A `good` or `bad` tone is also written as text ("Good:" or "Bad:"), and the mark beside it is hidden from assistive technology, so the tone is not conveyed by colour alone. Stat is static text with no keyboard behaviour.',
+        ].join('\n'),
+      },
+    },
+  },
+  argTypes: {
+    label: {
+      description: 'What the figure measures, such as "Groceries spent". Required.',
+    },
+    value: {
+      description: 'The figure, already formatted as text, such as "$1,200.00".',
+    },
+    change: {
+      description: 'The change shown under the value, such as "$50.00 under plan".',
+    },
+    tone: {
+      description: 'Whether the change is good (`good`), bad (`bad`) or neutral (`neutral`, the default).',
+    },
+  },
 } satisfies Meta<typeof Stat>;
 
 export default meta;

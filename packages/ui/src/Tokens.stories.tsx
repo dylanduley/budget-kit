@@ -4,6 +4,17 @@ import { contrastPairs } from './tokens.pairs';
 
 const meta = {
   title: 'Foundations/Tokens',
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          'Design tokens are CSS variables defined in `tokens.css`. Components use the semantic colour tokens (`--bk-color-*`), not the raw colour scales behind them.',
+          '',
+          'Every text and background pair a component uses, and the outline, fill and focus colours that carry meaning, is listed in `tokens.pairs.ts` and checked by `tokens.test.ts`: 4.5:1 for text, and 3:1 for outlines, fills and focus rings. Decorative colours, such as the row borders in Table and the Dialog scrim, are not listed. Add a new pair to `tokens.pairs.ts` before a component uses it.',
+        ].join('\n'),
+      },
+    },
+  },
 } satisfies Meta;
 
 export default meta;

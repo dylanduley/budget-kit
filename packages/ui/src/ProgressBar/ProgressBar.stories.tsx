@@ -6,6 +6,31 @@ const meta = {
   title: 'Components/ProgressBar',
   component: ProgressBar,
   args: { label: 'Groceries', value: 40, max: 100 },
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          'A bar showing how much of a limit or budget has been used, such as spending against a monthly category budget. Use it for a value measured against a maximum; use Stat for a single figure.',
+          '',
+          'The bar is a `progressbar` named by `label`. Its status text, such as "$450.00 of $400.00, over by $50.00", is read as the value. The fill changes colour above 80% of `max` (warning) and above `max` (danger). Going over is also stated in the status text, but the warning colour at 80% is not conveyed in text.',
+        ].join('\n'),
+      },
+    },
+  },
+  argTypes: {
+    label: {
+      description: 'Name of what is being measured, such as "Groceries". Read as the progress bar\'s name.',
+    },
+    value: {
+      description: 'The amount used. For money, pass integer cents. Negative and non-numeric values are treated as 0.',
+    },
+    max: {
+      description: 'The limit, in the same unit as `value` (integer cents for money). The bar is full at `max`; a `value` above it shows as over budget.',
+    },
+    formatValue: {
+      description: 'Turns an amount into text for the status line. For money, format the integer cents here, for example 45050 as "$450.50". Defaults to the plain number.',
+    },
+  },
   decorators: [
     (Story) => (
       <div style={{ maxWidth: '24rem' }}>
