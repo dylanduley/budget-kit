@@ -2,6 +2,8 @@
 
 import type { ReactElement } from 'react';
 
+import { MonthNotice } from '@/features/reset/MonthNotice';
+import { ResetMonth } from '@/features/reset/ResetMonth';
 import { formatMonth } from '@/lib/budget';
 import { useBudget } from '@/state/BudgetProvider';
 
@@ -25,6 +27,8 @@ export function BudgetApp(): ReactElement {
         <h1 className="text-2xl font-semibold text-text">Budget Kit</h1>
         <p className="text-text-muted">Budget for {formatMonth(budget.state.month)}</p>
       </div>
+      <MonthNotice />
+      <ResetMonth />
     </main>
   );
 }
