@@ -11,12 +11,12 @@ Seven specialized agents (`.claude/agents/`) in Claude Code, each with a narrow 
 
 | Agent | Job | Model |
 |---|---|---|
-| planner | Turns specs into small tasks with acceptance criteria | Fable |
+| planner | Turns specs into small tasks with acceptance criteria | Opus |
 | component-builder | Builds components and their stories | Sonnet |
-| feature-builder | Builds app features from library components | Fable |
+| feature-builder | Builds app features from library components | Sonnet |
 | qa | Writes and runs tests against acceptance criteria | Sonnet |
 | a11y-reviewer | Accessibility checks (axe + code review) | Haiku |
-| code-reviewer | Reviews each diff before merge | Fable |
+| code-reviewer | Reviews each diff before merge | Sonnet (Opus on hard tasks) |
 | docs-writer | Storybook docs and the build log | Haiku |
 
 How work flows between them: [`docs/workflow.md`](docs/workflow.md).

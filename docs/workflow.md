@@ -19,7 +19,10 @@ I'm the lead: I write the specs, approve plans, review every task's results, and
 ## Models
 | Role | Model | Why |
 |---|---|---|
-| Lead + planner | Fable (main session) | Planning quality decides everything downstream |
-| feature-builder, code-reviewer | Fable (inherit) | Harder logic and subtle bugs |
-| component-builder, qa | Sonnet | Well-defined, fast tasks |
-| a11y-reviewer, docs-writer | Haiku | Mechanical checks and summaries |
+| Lead | Your choice (main session) | Orchestration and decisions; you review the plan and every merge |
+| planner | Opus | Runs once per spec, and everything downstream depends on it |
+| component-builder, feature-builder, qa, code-reviewer | Sonnet | Well-defined tasks with explicit acceptance criteria |
+| code-reviewer on hard tasks (Dialog, MoneyField, `budget.ts`, persistence) | Opus | Subtle logic: focus management, money parsing, state |
+| a11y-reviewer, docs-writer | Haiku | Mechanical checks and summaries; Sonnet for Dialog's a11y review |
+
+Fable is not used by default. Pass the model explicitly when starting an agent, and move a task up a tier only after it has failed review twice.

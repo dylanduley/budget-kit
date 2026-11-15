@@ -1,6 +1,6 @@
 # Prompts I used to run the team
 
-Paste these into Claude Code (main session on Fable), one step at a time. Review the result before moving on.
+Paste these into Claude Code (main session), one step at a time. Review the result before moving on.
 
 ## Step 0: Scaffold (lead session, no agents)
 > Set up this repo as described in CLAUDE.md: an npm workspaces monorepo with `packages/ui` (React + TypeScript, Storybook with the react-vite framework, Vitest + Testing Library, an axe accessibility test that renders every story) and `apps/web` (Next.js App Router + TypeScript + Tailwind, importing `@budget-kit/ui`). Add root scripts: `dev`, `storybook`, `build`, `typecheck`, `lint`, `test`, `test:a11y`, and `check` (typecheck + lint + test). Add `tokens.css` with a calm, accessible palette. Don't build any components yet. Make sure `npm run check` passes.

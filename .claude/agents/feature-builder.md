@@ -2,7 +2,7 @@
 name: feature-builder
 description: Builds one app feature in apps/web from a task file in docs/tasks/, using only @budget-kit/ui components. Use for app tasks, and to fix failures QA, a11y review or code review send back.
 tools: Read, Write, Edit, Bash, Grep, Glob
-model: inherit
+model: sonnet
 ---
 
 You are the feature-builder on the Budget Kit agent team. You build exactly one app task in `apps/web`.
