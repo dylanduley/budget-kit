@@ -55,12 +55,12 @@ Amounts must be at least 1 cent: refunds and negative amounts are not supported 
 The date is not validated here: the Select only offers dates from `datesInMonth(state.month)`, and `addExpense` (task 01) still rejects any other date as a defence. On success `expense` is `{ categoryId, amountCents, note: note.trim(), date }`.
 
 ### Component
-- With no categories: renders `<p>Add a category before adding expenses.</p>` instead of the button.
+- With no categories: renders `<p>Add a category in Set up the month below before adding expenses.</p>` instead of the button.
 - Otherwise `<Button>` text `Add expense` (primary). It owns `const [open, setOpen] = useState(false)`; clicking sets it `true`.
 - `<Dialog open={open} onClose={close} title="Add expense" initialFocusRef={amountRef}>`; because the Dialog renders nothing while closed, the form mounts fresh on every open (no leftover values or errors).
 - Body: `<form id={formId} noValidate onSubmit={…}>` (`formId` from `useId`) with, in order:
-  - `MoneyField` label `Amount (USD)`, `ref={amountRef}`;
-  - `Select` label `Category`, `placeholder="Choose a category"`, controlled `value` starting `''`, options = current categories in state order, `{ value: id, label: categoryLabel(state, id) }`;
+  - `MoneyField` label `Amount (USD)`, `required`, `ref={amountRef}`;
+  - `Select` label `Category`, `required`, `placeholder="Choose a category"`, controlled `value` starting `''`, options = current categories in state order, `{ value: id, label: categoryLabel(state, id) }`;
   - `TextField` label `Note`, hint `Optional`, `maxLength={100}`;
   - `Select` label `Date`, controlled `value` starting at `defaultExpenseDate(state.month, today)`, no placeholder, options `datesInMonth(state.month).map((d) => ({ value: d, label: formatDate(d) }))` (ascending, e.g. `Nov 1, 2026` … `Nov 30, 2026`).
 - `actions`: `Button variant="secondary"` `Cancel` (closes), then `Button type="submit" form={formId}` `Save expense`. The submit button is outside the `<form>` element and linked by the `form` attribute, so Enter in a text field and clicking `Save expense` both submit.
@@ -79,7 +79,7 @@ Closed; no categories; open (empty); open with errors; after saving.
 - [ ] Amount, category and note all invalid → exactly those three errors at once.
 
 Component (render `renderWithBudget(<AddExpense />, { state: SCENARIO })` unless stated):
-- [ ] Closed: an `Add expense` button and no dialog. Seeded with zero categories: no button, the text `Add a category before adding expenses.`.
+- [ ] Closed: an `Add expense` button and no dialog. Seeded with zero categories: no button, the text `Add a category in Set up the month below before adding expenses.`.
 - [ ] Opens in a Dialog: clicking `Add expense` shows `getByRole('dialog', { name: 'Add expense' })`; focus is on `Amount (USD)`; the `Date` select has 30 options from `Nov 1, 2026` to `Nov 30, 2026` with values `2026-11-01` … `2026-11-30`, and `Nov 14, 2026` (value `2026-11-14`) is selected; with a `2026-10` budget and today `'2026-11-14'` it has 31 October options and `Oct 1, 2026` is selected; with a `2028-02` budget it has 29 options ending `Feb 29, 2028`; the category select shows `Choose a category` and lists `Rent`, `Groceries`, `Transport`, `Utilities`, `Eating out` in that order.
 - [ ] Option list follows state: seeded with a category renamed to `Food` and a sixth `Pets`, the options are the six current labels; a removed category is not listed.
 - [ ] Labels state the unit: the amount field's accessible name is exactly `Amount (USD)`; the other fields are `Category`, `Note`, `Date`.

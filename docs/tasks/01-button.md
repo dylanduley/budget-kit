@@ -50,7 +50,7 @@ export interface ButtonProps extends Omit<ComponentPropsWithRef<'button'>, 'type
 - `loading`:
   - sets `aria-busy="true"` and `aria-disabled="true"`; does **not** set native `disabled`, so the button keeps focus
   - click events do not reach `onClick` and are `preventDefault`ed, so a loading submit button does not submit its form
-  - shows a spinner element (`data-part="spinner"`, `aria-hidden="true"`) centred over the label; the label stays in the DOM with `visibility: hidden` so the width is unchanged and the accessible name is still the label
+  - shows a spinner element (`data-part="spinner"`, `aria-hidden="true"`) centred over the label; the label stays in the DOM with `opacity: 0` so the width is unchanged and the accessible name is still the label
   - the spinner animation is disabled under `@media (prefers-reduced-motion: reduce)`
   - keeps its variant colours
 - `disabled` and `loading` together: native `disabled` plus `aria-busy="true"` and the spinner.
