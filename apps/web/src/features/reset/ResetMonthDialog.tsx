@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, Dialog } from '@budget-kit/ui';
-import { type ReactElement, useRef, useState } from 'react';
+import { type ReactElement, useId, useRef, useState } from 'react';
 
 import { expensesForMonth, formatMonth } from '@/lib/budget';
 import { TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
@@ -16,6 +16,7 @@ const GENERIC_ERROR = 'Something went wrong. Your budget was not changed.';
 
 export function ResetMonthDialog({ open, onClose, onConfirmed }: ResetMonthDialogProps): ReactElement | null {
   const budget = useBudget();
+  const descriptionId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +54,7 @@ export function ResetMonthDialog({ open, onClose, onConfirmed }: ResetMonthDialo
       initialFocusRef={cancelRef}
       actions={
         <>
-          <Button variant="secondary" ref={cancelRef} onClick={close}>
+          <Button variant="secondary" ref={cancelRef} aria-describedby={descriptionId} onClick={close}>
             Cancel
           </Button>
           <Button variant="danger" onClick={confirm}>
@@ -62,7 +63,7 @@ export function ResetMonthDialog({ open, onClose, onConfirmed }: ResetMonthDialo
         </>
       }
     >
-      <p>
+      <p id={descriptionId}>
         This deletes your income, your categories and {count} {noun} for {formatMonth(state.month)}
         {ending} You can&apos;t undo this.
       </p>
