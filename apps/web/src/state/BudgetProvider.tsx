@@ -62,7 +62,10 @@ interface Model {
   savedDataReplaced: boolean;
 }
 
-const BudgetContext = createContext<BudgetContextValue | null>(null);
+export const TOTAL_TOO_LARGE_MESSAGE = 'That change would make a total too large.';
+
+// Exported for test helpers only.
+export const BudgetContext = createContext<BudgetContextValue | null>(null);
 
 function defaultGetToday(): string {
   return todayIso();
@@ -136,7 +139,7 @@ export function BudgetProvider({
       const m = current();
       const nextState = budgetReducer(m.state, action);
       if (nextState === m.state) return;
-      if (!canBeTotalled(nextState)) throw new RangeError('That change would make a total too large.');
+      if (!canBeTotalled(nextState)) throw new RangeError(TOTAL_TOO_LARGE_MESSAGE);
       const saved = saveBudget(storageRef.current, nextState);
       const next: Model = {
         ...m,
