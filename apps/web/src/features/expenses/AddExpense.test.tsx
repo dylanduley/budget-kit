@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { readFileSync, readdirSync } from 'node:fs';
+import type { ReactElement } from 'react';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { type BudgetState, MAX_CENTS, datesInMonth, defaultExpenseDate } from '@/lib/budget';
 import { formatDate } from '@/lib/format';
-import { TOTAL_TOO_LARGE_MESSAGE } from '@/state/BudgetProvider';
+import { TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
 import { expectNoAxeViolations } from '@/test/axe';
 import { SCENARIO } from '@/test/fixtures';
 import { renderWithBudget } from '@/test/renderWithBudget';
@@ -74,10 +75,23 @@ describe('closed and no-categories states', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('no categories: renders nothing (the sentence moved to the expense list)', async () => {
-    const { container } = renderWithBudget(<AddExpense />, { state: { ...SCENARIO, categories: [], expenses: [] } });
-    await waitFor(() => expect(container).toBeEmptyDOMElement());
+  it('no categories: renders nothing once the provider is ready (the sentence moved to the expense list)', async () => {
+    // The provider also renders nothing here while loading, so wait for the ready state first.
+    function ReadyProbe(): ReactElement {
+      return <p>{useBudget().status === 'ready' ? 'probe: ready' : 'probe: loading'}</p>;
+    }
+    renderWithBudget(
+      <>
+        <ReadyProbe />
+        <AddExpense />
+      </>,
+      { state: { ...SCENARIO, categories: [], expenses: [] } },
+    );
+    expect(await screen.findByText('probe: ready')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText(/category/i)).not.toBeInTheDocument();
+    expect(document.body.textContent).toBe('probe: ready');
   });
 });
 
