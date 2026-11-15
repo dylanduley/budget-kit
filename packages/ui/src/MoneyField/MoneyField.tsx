@@ -45,6 +45,7 @@ export function MoneyField({
     if (value !== lastEmitted) {
       setText(textFor(value));
       setParseError(null);
+      setLastEmitted(value);
     }
   }
 
