@@ -8,7 +8,7 @@ import { SCENARIO } from '@/test/fixtures';
 import { createMemoryStorage } from '@/test/memoryStorage';
 import { renderWithBudget } from '@/test/renderWithBudget';
 import { type BudgetActions, type BudgetContextValue, BudgetProvider, useBudget } from './BudgetProvider';
-import { STORAGE_KEY, serializeBook } from './storage';
+import { BACKUP_KEY, STORAGE_KEY, serializeBook } from './storage';
 
 function serializeOneMonth(state: BudgetState): string {
   return serializeBook({ months: [state] });
@@ -114,8 +114,9 @@ describe('loading', () => {
     await mount({ storage });
     expect(storage.setItemCalls).toBe(0);
     act(() => ready().actions.setIncome(700));
-    expect(storage.setItemCalls).toBe(1);
+    expect(storage.setItemCalls).toBe(2);
     expect(storage.getItem(STORAGE_KEY)).toBe(serializeOneMonth({ ...createInitialState('2026-11'), incomeCents: 700 }));
+    expect(storage.getItem(BACKUP_KEY)).toBe('garbage');
   });
 
   it('the first change overwrites an unsupported-version value', async () => {
@@ -710,7 +711,7 @@ describe('no-op actions', () => {
     expect(ready().state).toBe(before);
     expect(ready().savedDataReplaced).toBe(false);
     act(() => ready().actions.setIncome(3));
-    expect(storage.setItemCalls).toBe(1);
+    expect(storage.setItemCalls).toBe(2);
     expect(storage.dump()[STORAGE_KEY]).not.toBe('garbage');
     expect(ready().savedDataReplaced).toBe(true);
   });

@@ -10,7 +10,7 @@ import { createMemoryStorage } from '@/test/memoryStorage';
 import type { RenderWithBudgetOptions } from '@/test/renderWithBudget';
 import { renderWithBudget } from '@/test/renderWithBudget';
 import { type BudgetContextValue, BudgetProvider, TOTAL_TOO_LARGE_MESSAGE, useBudget } from './BudgetProvider';
-import { STORAGE_KEY, parseStoredBudget, serializeBook } from './storage';
+import { BACKUP_KEY, STORAGE_KEY, parseStoredBudget, serializeBook } from './storage';
 
 type Ready = Extract<BudgetContextValue, { status: 'ready' }>;
 const probe: { latest: BudgetContextValue | null; renders: BudgetContextValue[] } = { latest: null, renders: [] };
@@ -69,7 +69,8 @@ describe('Migration without writing', () => {
     const storage = createMemoryStorage(SEED_V1);
     await mount({ storage });
     act(() => ready().actions.setIncome(500));
-    expect(storage.setItemCalls).toBe(1);
+    expect(storage.setItemCalls).toBe(2);
+    expect(storage.dump()[BACKUP_KEY]).toBe(V1_SCENARIO);
     const raw = storage.dump()[STORAGE_KEY]!;
     expect(raw).toContain('"version":2');
     expect(JSON.parse(raw).version).toBe(2);
