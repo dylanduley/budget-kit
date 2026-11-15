@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_CENTS,
-  SUGGESTED_CATEGORIES,
+  SUGGESTED_CATEGORY_NAMES,
   addCategory,
   addExpense,
   categoryLabel,
@@ -91,9 +91,20 @@ function makeS(): BudgetState {
   };
 }
 
+// The five categories every state started with before the redesign; most tests below need them.
+const OLD_FIVE_CATEGORIES: readonly Readonly<Category>[] = Object.freeze(
+  ['Rent', 'Groceries', 'Transport', 'Utilities', 'Eating out'].map((name) =>
+    Object.freeze({ id: `suggested-${name.toLowerCase().replace(' ', '-')}`, name, plannedCents: 0 }),
+  ),
+);
+
+function seedState(month: string): BudgetState {
+  return { ...createInitialState(month), categories: OLD_FIVE_CATEGORIES.map((category) => ({ ...category })) };
+}
+
 // The SCENARIO of the criteria: the five suggested categories in 2026-11.
 function makeScenario(): BudgetState {
-  return createInitialState('2026-11');
+  return seedState('2026-11');
 }
 
 function summary(
@@ -147,7 +158,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('S built through the API equals the literal S, and getTotals agrees', () => {
-    let state = createInitialState('2026-11');
+    let state = seedState('2026-11');
     state = setIncome(state, 320000);
     state = updateCategory(state, RENT, { plannedCents: 150000 });
     state = updateCategory(state, GROCERIES, { plannedCents: 40000 });
@@ -250,8 +261,8 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
     ]);
   });
 
-  it("row createInitialState('2026-11')", () => {
-    const state = createInitialState('2026-11');
+  it("row seedState('2026-11')", () => {
+    const state = seedState('2026-11');
     expect(getTotals(state)).toEqual({
       incomeCents: 0,
       plannedCents: 0,
@@ -271,7 +282,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('row: Groceries planned 8247, spent 8247 is exactly at plan, not over', () => {
-    let state = createInitialState('2026-11');
+    let state = seedState('2026-11');
     state = updateCategory(state, GROCERIES, { plannedCents: 8247 });
     state = addExpense(state, { categoryId: GROCERIES, amountCents: 8247, note: '', date: '2026-11-02' }, 'x1');
     expect(getTotals(state)).toEqual({
@@ -293,7 +304,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('row: Transport planned 0, one expense of 1 is over with remaining -1 and no plan', () => {
-    const state = addExpense(createInitialState('2026-11'), { categoryId: TRANSPORT, amountCents: 1, note: '', date: '2026-11-02' }, 'x1');
+    const state = addExpense(seedState('2026-11'), { categoryId: TRANSPORT, amountCents: 1, note: '', date: '2026-11-02' }, 'x1');
     expect(getTotals(state)).toEqual({
       incomeCents: 0,
       plannedCents: 0,
@@ -313,7 +324,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('row: Transport planned 1, one expense of 1 is not over with remaining 0 and a plan', () => {
-    let state = updateCategory(createInitialState('2026-11'), TRANSPORT, { plannedCents: 1 });
+    let state = updateCategory(seedState('2026-11'), TRANSPORT, { plannedCents: 1 });
     state = addExpense(state, { categoryId: TRANSPORT, amountCents: 1, note: '', date: '2026-11-02' }, 'x1');
     expect(getTotals(state)).toEqual({
       incomeCents: 0,
@@ -334,7 +345,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('row: income MAX_CENTS and three Transport expenses of MAX_CENTS is exact', () => {
-    let state = setIncome(createInitialState('2026-11'), MAX_CENTS);
+    let state = setIncome(seedState('2026-11'), MAX_CENTS);
     state = addExpense(state, { categoryId: TRANSPORT, amountCents: MAX_CENTS, note: '', date: '2026-11-01' }, 'm1');
     state = addExpense(state, { categoryId: TRANSPORT, amountCents: MAX_CENTS, note: '', date: '2026-11-02' }, 'm2');
     state = addExpense(state, { categoryId: TRANSPORT, amountCents: MAX_CENTS, note: '', date: '2026-11-03' }, 'm3');
@@ -357,7 +368,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   function stateWithMaxExpenses(count: number): BudgetState {
-    let state = createInitialState('2026-11');
+    let state = seedState('2026-11');
     for (let i = 0; i < count; i += 1) {
       state = addExpense(state, { categoryId: TRANSPORT, amountCents: MAX_CENTS, note: '', date: '2026-11-15' }, `big${i}`);
     }
@@ -378,7 +389,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('cent-exactness: expenses 10 and 20 give spent 30', () => {
-    let state = createInitialState('2026-11');
+    let state = seedState('2026-11');
     state = addExpense(state, { categoryId: RENT, amountCents: 10, note: '', date: '2026-11-01' }, 'a');
     state = addExpense(state, { categoryId: RENT, amountCents: 20, note: '', date: '2026-11-01' }, 'b');
     expect(getTotals(state).spentCents).toBe(30);
@@ -386,7 +397,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('cent-exactness: three expenses of 1999 give spent 5997', () => {
-    let state = createInitialState('2026-11');
+    let state = seedState('2026-11');
     for (const id of ['a', 'b', 'c']) {
       state = addExpense(state, { categoryId: GROCERIES, amountCents: 1999, note: '', date: '2026-11-01' }, id);
     }
@@ -395,7 +406,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('ordering: a, b, c, d added in order give [c, a, b] and d is excluded from the list and every total', () => {
-    let state = createInitialState('2026-11');
+    let state = seedState('2026-11');
     // d is from another month, so only hand-made state can hold it.
     state = addExpense(state, { categoryId: RENT, amountCents: 1, note: '', date: '2026-11-05' }, 'a');
     state = addExpense(state, { categoryId: RENT, amountCents: 2, note: '', date: '2026-11-01' }, 'b');
@@ -426,7 +437,7 @@ describe('worked examples: getTotals and getCategorySummaries', () => {
   });
 
   it('never returns negative zero from any figure', () => {
-    const state = createInitialState('2026-11');
+    const state = seedState('2026-11');
     const totals = getTotals(state);
     for (const value of [totals.incomeCents, totals.plannedCents, totals.spentCents, totals.leftToSpendCents, totals.unplannedCents, totals.removedCategoriesSpentCents]) {
       expect(Object.is(value, 0)).toBe(true);
@@ -691,21 +702,14 @@ describe('sumCents', () => {
 // Suggested categories and initial state
 // ---------------------------------------------------------------------------
 
-describe('SUGGESTED_CATEGORIES and createInitialState', () => {
-  const expected: Category[] = [
-    { id: 'suggested-rent', name: 'Rent', plannedCents: 0 },
-    { id: 'suggested-groceries', name: 'Groceries', plannedCents: 0 },
-    { id: 'suggested-transport', name: 'Transport', plannedCents: 0 },
-    { id: 'suggested-utilities', name: 'Utilities', plannedCents: 0 },
-    { id: 'suggested-eating-out', name: 'Eating out', plannedCents: 0 },
-  ];
-
-  it('SUGGESTED_CATEGORIES lists the five categories in order', () => {
-    expect(SUGGESTED_CATEGORIES).toEqual(expected);
+describe('SUGGESTED_CATEGORY_NAMES and createInitialState', () => {
+  it('SUGGESTED_CATEGORY_NAMES lists the five names in order and is frozen', () => {
+    expect(SUGGESTED_CATEGORY_NAMES).toEqual(['Rent', 'Groceries', 'Transport', 'Utilities', 'Eating out']);
+    expect(Object.isFrozen(SUGGESTED_CATEGORY_NAMES)).toBe(true);
   });
 
-  it('createInitialState returns the exact listed shape', () => {
-    expect(createInitialState('2026-11')).toEqual({ month: '2026-11', incomeCents: 0, categories: expected, expenses: [] });
+  it('createInitialState returns the exact listed shape, with no categories', () => {
+    expect(createInitialState('2026-11')).toEqual({ month: '2026-11', incomeCents: 0, categories: [], expenses: [] });
     expect(createInitialState('2028-02').month).toBe('2028-02');
   });
 
@@ -713,42 +717,22 @@ describe('SUGGESTED_CATEGORIES and createInitialState', () => {
     expectRangeError(() => createInitialState(value));
   });
 
-  it('two calls share no arrays or category objects', () => {
+  it('two calls share no arrays', () => {
     const a = createInitialState('2026-11');
     const b = createInitialState('2026-11');
     expect(a).not.toBe(b);
     expect(a.categories).not.toBe(b.categories);
     expect(a.expenses).not.toBe(b.expenses);
-    a.categories.forEach((category, index) => {
-      expect(category).not.toBe(at(b.categories, index));
-      expect(category).not.toBe(at(SUGGESTED_CATEGORIES, index));
-    });
   });
 
-  it('mutating one result changes neither a second result nor SUGGESTED_CATEGORIES', () => {
+  it('mutating one result changes neither a second result nor a later one', () => {
     const a = createInitialState('2026-11');
     const b = createInitialState('2026-11');
-    const frozenCopy = structuredClone(SUGGESTED_CATEGORIES);
-    at(a.categories, 0).name = 'Mutated';
-    at(a.categories, 1).plannedCents = 12345;
     a.categories.push({ id: 'extra', name: 'Extra', plannedCents: 1 });
-    a.categories.length = 2;
     a.expenses.push({ id: 'x', categoryId: RENT, amountCents: 1, note: '', date: '2026-11-01' });
     a.incomeCents = 99;
-    expect(b).toEqual({ month: '2026-11', incomeCents: 0, categories: expected, expenses: [] });
-    expect(SUGGESTED_CATEGORIES).toEqual(frozenCopy);
-    expect(createInitialState('2026-11').categories).toEqual(expected);
-  });
-
-  it('state-changing functions on one initial state never touch SUGGESTED_CATEGORIES or a later initial state', () => {
-    const before = structuredClone(SUGGESTED_CATEGORIES);
-    let state = createInitialState('2026-11');
-    state = updateCategory(state, RENT, { name: 'Changed', plannedCents: 5 });
-    state = removeCategory(state, GROCERIES);
-    state = addCategory(state, { name: 'Pets', plannedCents: 1 }, 'pets');
-    expect(state.categories.map((c) => c.id)).toEqual([RENT, TRANSPORT, UTILITIES, EATING_OUT, 'pets']);
-    expect(SUGGESTED_CATEGORIES).toEqual(before);
-    expect(createInitialState('2026-11').categories).toEqual(expected);
+    expect(b).toEqual({ month: '2026-11', incomeCents: 0, categories: [], expenses: [] });
+    expect(createInitialState('2026-11').categories).toEqual([]);
   });
 });
 
@@ -1015,8 +999,8 @@ describe('addExpense', () => {
     expect(at(addExpense(makeS(), { ...base, date }, 'e9').expenses, 3).date).toBe(date);
   });
   it('accepts 2028-02-29 in a 2028-02 state but not 2026-02-29 in a 2026-02 state', () => {
-    expect(addExpense(createInitialState('2028-02'), { ...base, date: '2028-02-29' }, 'e9').expenses).toHaveLength(1);
-    expectRangeError(() => addExpense(createInitialState('2026-02'), { ...base, date: '2026-02-29' }, 'e9'));
+    expect(addExpense(seedState('2028-02'), { ...base, date: '2028-02-29' }, 'e9').expenses).toHaveLength(1);
+    expectRangeError(() => addExpense(seedState('2026-02'), { ...base, date: '2026-02-29' }, 'e9'));
   });
   it('throws Error (not RangeError) for an unknown categoryId', () => {
     expectPlainError(() => addExpense(makeS(), { ...base, categoryId: 'nope' }, 'e9'));
@@ -1123,7 +1107,7 @@ describe('expensesForMonth', () => {
     const dates = datesInMonth('2026-11');
     const expenses: Expense[] = [];
     for (let i = 0; i < 400; i += 1) expenses.push(expense(`x${i}`, at(dates, int(rng, 6) + 10)));
-    const state: BudgetState = { ...createInitialState('2026-11'), expenses };
+    const state: BudgetState = { ...seedState('2026-11'), expenses };
     const ids = expensesForMonth(state).map((e) => e.id);
     expect(ids).toHaveLength(400);
     const expected = expenses
@@ -1135,13 +1119,13 @@ describe('expensesForMonth', () => {
 
   it('all-equal dates come back exactly reversed', () => {
     const expenses = Array.from({ length: 150 }, (_, i) => expense(`x${i}`, '2026-11-09'));
-    const state: BudgetState = { ...createInitialState('2026-11'), expenses };
+    const state: BudgetState = { ...seedState('2026-11'), expenses };
     expect(expensesForMonth(state).map((e) => e.id)).toEqual(expenses.map((e) => e.id).reverse());
   });
 
   it('ties stay ordered when interleaved with other dates and other months', () => {
     const state: BudgetState = {
-      ...createInitialState('2026-11'),
+      ...seedState('2026-11'),
       expenses: [
         expense('a', '2026-11-05'),
         expense('z1', '2026-12-05'),
@@ -1162,11 +1146,11 @@ describe('expensesForMonth', () => {
     expect(list).toHaveLength(3);
     expect(list.map((e) => e.id)).toEqual(['e3', 'e2', 'e1']);
     for (const item of list) expect(state.expenses).toContain(item);
-    expect(expensesForMonth(createInitialState('2026-11'))).toEqual([]);
+    expect(expensesForMonth(seedState('2026-11'))).toEqual([]);
   });
 
   it('a leap-day expense is listed in a leap February', () => {
-    const state = addExpense(createInitialState('2028-02'), { categoryId: RENT, amountCents: 1, note: '', date: '2028-02-29' }, 'leap');
+    const state = addExpense(seedState('2028-02'), { categoryId: RENT, amountCents: 1, note: '', date: '2028-02-29' }, 'leap');
     expect(expensesForMonth(state).map((e) => e.id)).toEqual(['leap']);
   });
 });
@@ -1446,7 +1430,7 @@ describe('random operation sequences keep the invariants', () => {
     const rng = makeRng(seed);
     const month = pick(rng, ['2026-11', '2028-02', '2026-02']);
     const days = datesInMonth(month);
-    let state = createInitialState(month);
+    let state = seedState(month);
     let nextId = 0;
     let adds = 0;
     let rejected = 0;
@@ -1498,7 +1482,7 @@ describe('random operation sequences keep the invariants', () => {
         else expect(next.expenses).toHaveLength(state.expenses.length - 1);
       } else {
         // Re-adding a removed suggested category by id is the "undo" a UI could do.
-        const id = pick(rng, SUGGESTED_CATEGORIES).id;
+        const id = pick(rng, OLD_FIVE_CATEGORIES).id;
         if (!state.categories.some((c) => c.id === id) && categoryNameError(state, 'Rent') === null) {
           next = addCategory(state, { name: 'Rent', plannedCents: 0 }, id);
         }
@@ -1654,28 +1638,6 @@ describe('updateCategory ignores undefined and unknown patch keys', () => {
     state = updateCategory(state, UTILITIES, { name: ' Bills ' });
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
     for (const category of state.categories) expect(hasUndefinedValue(category)).toBe(false);
-  });
-});
-
-describe('SUGGESTED_CATEGORIES is frozen but createInitialState copies are not', () => {
-  it('Object.isFrozen is true for the list and for each entry', () => {
-    expect(Object.isFrozen(SUGGESTED_CATEGORIES)).toBe(true);
-    for (const entry of SUGGESTED_CATEGORIES) expect(Object.isFrozen(entry)).toBe(true);
-  });
-
-  it('createInitialState results are not frozen and are independent copies', () => {
-    const a = createInitialState('2026-11');
-    const b = createInitialState('2026-11');
-    expect(Object.isFrozen(a)).toBe(false);
-    expect(Object.isFrozen(a.categories)).toBe(false);
-    for (const category of a.categories) expect(Object.isFrozen(category)).toBe(false);
-    const snapshot = structuredClone(SUGGESTED_CATEGORIES);
-    at(a.categories, 0).name = 'Mutated';
-    at(a.categories, 0).plannedCents = 9;
-    a.categories.push({ id: 'z', name: 'Z', plannedCents: 1 });
-    expect(at(b.categories, 0)).toEqual({ id: RENT, name: 'Rent', plannedCents: 0 });
-    expect(b.categories).toHaveLength(5);
-    expect(SUGGESTED_CATEGORIES).toEqual(snapshot);
   });
 });
 

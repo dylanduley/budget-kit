@@ -8,7 +8,11 @@ import { SCENARIO } from '@/test/fixtures';
 import { createMemoryStorage } from '@/test/memoryStorage';
 import { renderWithBudget } from '@/test/renderWithBudget';
 import { type BudgetActions, type BudgetContextValue, BudgetProvider, useBudget } from './BudgetProvider';
-import { STORAGE_KEY, serializeBudget } from './storage';
+import { STORAGE_KEY, serializeBook } from './storage';
+
+function serializeOneMonth(state: BudgetState): string {
+  return serializeBook({ months: [state] });
+}
 
 const probe: { latest: BudgetContextValue | null; seenActions: BudgetActions[] } = { latest: null, seenActions: [] };
 
@@ -24,7 +28,7 @@ function Probe(): ReactElement {
       <p>status: ready</p>
       <p data-testid="load">{budget.loadStatus}</p>
       <p data-testid="current">{budget.currentMonth}</p>
-      <p data-testid="other">{String(budget.isOtherMonth)}</p>
+      <p data-testid="viewed">{budget.viewedMonth}</p>
       <p data-testid="gen">{budget.generation}</p>
       <p data-testid="today">{budget.today}</p>
       <pre data-testid="state">{JSON.stringify(budget.state)}</pre>
@@ -61,7 +65,7 @@ describe('useBudget', () => {
 
 describe('loading', () => {
   it('shows loading first and then ready after mount', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     const seen: string[] = [];
     function Spy(): ReactElement {
       const b = useBudget();
@@ -94,7 +98,7 @@ describe('loading', () => {
 
   it.each([
     ['not json', 'not json'],
-    ['version 2', JSON.stringify({ version: 2, state: SCENARIO })],
+    ['version 3', JSON.stringify({ version: 3, state: SCENARIO })],
     ['incomeCents "1250"', JSON.stringify({ version: 1, state: { ...SCENARIO, incomeCents: '1250' } })],
   ])('invalid stored data (%s): initial state, loadStatus invalid, raw value byte-identical, nothing written', async (_n, raw) => {
     const storage = createMemoryStorage({ [STORAGE_KEY]: raw });
@@ -111,20 +115,20 @@ describe('loading', () => {
     expect(storage.setItemCalls).toBe(0);
     act(() => ready().actions.setIncome(700));
     expect(storage.setItemCalls).toBe(1);
-    expect(storage.getItem(STORAGE_KEY)).toBe(serializeBudget({ ...createInitialState('2026-11'), incomeCents: 700 }));
+    expect(storage.getItem(STORAGE_KEY)).toBe(serializeOneMonth({ ...createInitialState('2026-11'), incomeCents: 700 }));
   });
 
   it('the first change overwrites an unsupported-version value', async () => {
-    const raw = JSON.stringify({ version: 2, state: SCENARIO });
+    const raw = JSON.stringify({ version: 3, state: SCENARIO });
     const storage = createMemoryStorage({ [STORAGE_KEY]: raw });
     await mount({ storage });
     expect(storage.getItem(STORAGE_KEY)).toBe(raw);
     act(() => ready().actions.setIncome(1));
-    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({ version: 1 });
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({ version: 2 });
   });
 
   it('loading never writes (SCENARIO seeded), even after extra renders', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     await mount({ storage });
     expect(storage.setItemCalls).toBe(0);
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -142,7 +146,7 @@ describe('loading', () => {
 
   it('uses window.localStorage when no storage prop is given, and writes only after a change', async () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
-    window.localStorage.setItem(STORAGE_KEY, serializeBudget(SCENARIO));
+    window.localStorage.setItem(STORAGE_KEY, serializeOneMonth(SCENARIO));
     setItem.mockClear();
     render(
       <BudgetProvider getToday={() => '2026-11-14'}>
@@ -153,7 +157,7 @@ describe('loading', () => {
     expect(shownState()).toEqual(SCENARIO);
     expect(setItem).not.toHaveBeenCalled();
     act(() => ready().actions.setIncome(5));
-    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '{}').state.incomeCents).toBe(5);
+    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '{}').book.months[0].incomeCents).toBe(5);
   });
 
   it('falls back to memory only when window.localStorage access throws', async () => {
@@ -199,7 +203,7 @@ describe('render purity', () => {
     const getToday = vi.fn(() => '2026-11-14');
     const createId = vi.fn(() => 'id');
     const uuid = vi.spyOn(crypto, 'randomUUID');
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     const getItem = vi.spyOn(storage, 'getItem');
     const html = renderToString(
       <BudgetProvider storage={storage} getToday={getToday} createId={createId}>
@@ -227,7 +231,7 @@ describe('render purity', () => {
   it('the first client render pass (before effects) reads nothing, and getToday runs once after mount', async () => {
     const getToday = vi.fn(() => '2026-11-14');
     const createId = vi.fn(() => 'id');
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     const getItem = vi.spyOn(storage, 'getItem');
     const uuid = vi.spyOn(crypto, 'randomUUID');
     const atFirstRender: number[] = [];
@@ -265,43 +269,41 @@ describe('render purity', () => {
   });
 });
 
-describe('currentMonth and isOtherMonth', () => {
-  it('today in a later month: state is kept, isOtherMonth true, nothing written', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+describe('currentMonth and the viewed month', () => {
+  it('today in a later month: the month is started as a copy, nothing written', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     await mount({ storage, today: '2026-12-02' });
-    expect(shownState()).toEqual(SCENARIO);
+    expect(shownState()).toEqual({ ...SCENARIO, month: '2026-12', expenses: [] });
     expect(screen.getByTestId('current')).toHaveTextContent('2026-12');
-    expect(screen.getByTestId('other')).toHaveTextContent('true');
+    expect(screen.getByTestId('viewed')).toHaveTextContent('2026-12');
     expect(screen.getByTestId('today')).toHaveTextContent('2026-12-02');
     expect(storage.setItemCalls).toBe(0);
   });
 
-  it('today in the same month (last day): isOtherMonth false', async () => {
+  it('today in the same month (last day): the stored month is shown', async () => {
     await mount({ state: SCENARIO, today: '2026-11-30' });
-    expect(screen.getByTestId('other')).toHaveTextContent('false');
+    expect(shownState()).toEqual(SCENARIO);
     expect(screen.getByTestId('current')).toHaveTextContent('2026-11');
   });
 
-  it('clock earlier than the stored month: isOtherMonth true, state unchanged', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+  it('clock earlier than the stored month: the current month starts empty, nothing written', async () => {
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     await mount({ storage, today: '2026-10-15' });
-    expect(screen.getByTestId('other')).toHaveTextContent('true');
     expect(screen.getByTestId('current')).toHaveTextContent('2026-10');
-    expect(shownState()).toEqual(SCENARIO);
+    expect(shownState()).toEqual(createInitialState('2026-10'));
     expect(storage.setItemCalls).toBe(0);
   });
 
-  it('same month number in a different year counts as another month', async () => {
+  it('same month number in a different year is another month', async () => {
     await mount({ state: SCENARIO, today: '2027-11-14' });
-    expect(screen.getByTestId('other')).toHaveTextContent('true');
     expect(screen.getByTestId('current')).toHaveTextContent('2027-11');
-    expect(shownState().month).toBe('2026-11');
+    expect(shownState().month).toBe('2027-11');
   });
 
-  it('empty storage creates the initial state for the injected month, so isOtherMonth is false', async () => {
+  it('empty storage creates the initial state for the injected month', async () => {
     await mount({ today: '2027-03-09' });
     expect(shownState().month).toBe('2027-03');
-    expect(screen.getByTestId('other')).toHaveTextContent('false');
+    expect(screen.getByTestId('viewed')).toHaveTextContent('2027-03');
   });
 });
 
@@ -346,7 +348,7 @@ describe('actions', () => {
   it('ids come from the injected generator, in order', async () => {
     const ids = ['alpha', 'beta'];
     const createId = vi.fn(() => ids.shift() ?? 'extra');
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     render(
       <BudgetProvider storage={storage} getToday={() => '2026-11-14'} createId={createId}>
         <Probe />
@@ -407,7 +409,7 @@ describe('actions', () => {
   });
 
   it('a throwing action propagates and changes neither state nor storage', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     await mount({ storage });
     const before = storage.dump();
     const calls = storage.setItemCalls;
@@ -467,36 +469,28 @@ describe('refresh (page reload)', () => {
   });
 });
 
-describe('resetMonth', () => {
-  it('replaces the state with a fresh month, bumps generation and saves', async () => {
-    const view = await mount({ state: SCENARIO, today: '2026-12-02' });
+describe('deleteAllData', () => {
+  it('empties the book, shows the current month, bumps generation and saves', async () => {
+    const view = await mount({ state: SCENARIO });
     expect(ready().generation).toBe(0);
-    act(() => ready().actions.resetMonth());
-    expect(ready().state).toEqual(createInitialState('2026-12'));
+    act(() => ready().actions.deleteAllData());
+    expect(ready().state).toEqual(createInitialState('2026-11'));
     expect(ready().generation).toBe(1);
-    expect(view.readStored()).toEqual(createInitialState('2026-12'));
-    expect(ready().isOtherMonth).toBe(false);
-    act(() => ready().actions.resetMonth());
+    expect(view.readStoredBook()).toEqual({ months: [] });
+    act(() => ready().actions.deleteAllData());
     expect(ready().generation).toBe(2);
   });
 
-  it('resets even when the stored state was already the current month, discarding edits', async () => {
+  it('persists across a refresh, and generation restarts at 0', async () => {
     const view = await mount({ state: SCENARIO });
-    act(() => ready().actions.resetMonth());
-    expect(view.readStored()).toEqual(createInitialState('2026-11'));
-    expect(ready().state.expenses).toEqual([]);
-  });
-
-  it('a reset after a refresh persists too, and generation restarts at 0', async () => {
-    const view = await mount({ state: SCENARIO, today: '2026-12-02' });
-    act(() => ready().actions.resetMonth());
+    act(() => ready().actions.deleteAllData());
     view.refresh();
     await screen.findByText('status: ready');
-    expect(shownState()).toEqual(createInitialState('2026-12'));
+    expect(shownState()).toEqual(createInitialState('2026-11'));
     expect(ready().generation).toBe(0);
   });
 
-  it('non-reset actions do not change generation', async () => {
+  it('other actions do not change generation', async () => {
     await mount({ state: SCENARIO });
     act(() => ready().actions.setIncome(3));
     expect(ready().generation).toBe(0);
@@ -518,7 +512,7 @@ describe('storage failures', () => {
   });
 
   it('a failed save is ignored: state still updates and later actions still work', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) }, { throwOnSet: true });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) }, { throwOnSet: true });
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     await mount({ storage });
     expect(screen.getByTestId('load')).toHaveTextContent('loaded');
@@ -529,13 +523,13 @@ describe('storage failures', () => {
     });
     expect(shownState().categories.at(-1)?.name).toBe('Pets');
     expect(storage.setItemCalls).toBe(2);
-    expect(storage.dump()[STORAGE_KEY]).toBe(serializeBudget(SCENARIO));
+    expect(storage.dump()[STORAGE_KEY]).toBe(serializeOneMonth(SCENARIO));
     expect(error).not.toHaveBeenCalled();
   });
 
   it('a save that fails once does not stop later saves from succeeding', async () => {
     let fail = true;
-    const inner = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const inner = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     const storage = {
       getItem: (k: string) => inner.getItem(k),
       removeItem: (k: string) => inner.removeItem(k),
@@ -556,7 +550,7 @@ describe('StrictMode', () => {
   it('loads once to the same state, with no duplicate writes and no warnings', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     const getItem = vi.spyOn(storage, 'getItem');
     const createId = vi.fn(() => 'sid');
     render(
@@ -626,7 +620,7 @@ function bigExpenses(n: number): BudgetState {
 
 describe('totals-safe actions', () => {
   it('addCategory that would overflow the planned total throws the exact RangeError and changes nothing', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigCategories(90)) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(bigCategories(90)) });
     await mount({ storage });
     const before = ready().state;
     const calls = storage.setItemCalls;
@@ -646,7 +640,7 @@ describe('totals-safe actions', () => {
   });
 
   it('addExpense that would overflow the spent total throws the exact RangeError and changes nothing', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigExpenses(90)) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(bigExpenses(90)) });
     await mount({ storage });
     const before = ready().state;
     const calls = storage.setItemCalls;
@@ -663,7 +657,7 @@ describe('totals-safe actions', () => {
   });
 
   it('a change that stays safe still works afterwards, including one exactly at the limit', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigCategories(89)) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(bigCategories(89)) });
     await mount({ storage });
     expect(() => ready().actions.addCategory({ name: 'Over', plannedCents: MAX_CENTS * 2 })).toThrow();
     act(() => {
@@ -678,7 +672,7 @@ describe('totals-safe actions', () => {
   });
 
   it('an overflowing action in the same act as a valid one keeps only the valid one', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(bigCategories(90)) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(bigCategories(90)) });
     await mount({ storage });
     act(() => {
       const { actions } = ready();
@@ -722,7 +716,7 @@ describe('no-op actions', () => {
   });
 
   it('each no-op alone does not write (loaded SCENARIO)', async () => {
-    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     await mount({ storage });
     const before = ready().state;
     for (const run of [
@@ -807,7 +801,7 @@ describe('savedDataReplaced', () => {
   });
 
   it('stays false for loaded, empty and unavailable even after saves', async () => {
-    const loaded = createMemoryStorage({ [STORAGE_KEY]: serializeBudget(SCENARIO) });
+    const loaded = createMemoryStorage({ [STORAGE_KEY]: serializeOneMonth(SCENARIO) });
     await mount({ storage: loaded });
     expect(ready().savedDataReplaced).toBe(false);
     act(() => ready().actions.setIncome(1));

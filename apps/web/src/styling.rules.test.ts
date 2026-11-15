@@ -40,7 +40,6 @@ describe('the scan sees the app', () => {
       'features/expenses/AddExpense.tsx',
       'features/expenses/ExpenseList.tsx',
       'features/setup/MonthSetup.tsx',
-      'features/reset/ResetMonth.tsx',
       'state/BudgetProvider.tsx',
       'app/layout.tsx',
     ]) {
@@ -104,7 +103,7 @@ describe('alerts and live regions', () => {
         expect(tag, where).toMatch(/data-part="action-error"/);
       }
     }
-    expect(found).toBeGreaterThanOrEqual(5);
+    expect(found).toBeGreaterThanOrEqual(4);
   });
 
   it('there is no role="status" and no aria-live', () => {
@@ -152,14 +151,14 @@ describe('every action call is in a try whose catch shows a message', () => {
         expect(enclosing?.catchBody ?? '', `${where}: catch shows no message`).toMatch(/\bset[A-Z]\w*\(|\breturn\b/);
       }
     }
-    // setIncome, updateCategory x2, removeCategory, addCategory, addExpense, deleteExpense, resetMonth.
-    expect(calls).toBeGreaterThanOrEqual(8);
+    // setIncome, updateCategory x2, removeCategory, addCategory, addExpense, deleteExpense.
+    expect(calls).toBeGreaterThanOrEqual(7);
   });
 
   it('actions are never destructured or aliased (which would hide a call from the check)', () => {
     for (const file of featureFiles) {
       const code = stripComments(read(file));
-      expect(code, rel(file)).not.toMatch(/\{[^{}]*\b(setIncome|addCategory|updateCategory|removeCategory|addExpense|deleteExpense|resetMonth)\b[^{}]*\}\s*=\s*(?:\w+\.)?actions\b/);
+      expect(code, rel(file)).not.toMatch(/\{[^{}]*\b(setIncome|addCategory|updateCategory|removeCategory|addExpense|deleteExpense|deleteAllData)\b[^{}]*\}\s*=\s*(?:\w+\.)?actions\b/);
       expect(code, rel(file)).not.toMatch(/=\s*(?:\w+\.)?actions\.\w+\s*[;,)]/);
     }
   });

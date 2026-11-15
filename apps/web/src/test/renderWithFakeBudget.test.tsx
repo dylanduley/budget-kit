@@ -9,7 +9,7 @@ import { SCENARIO } from './fixtures';
 import { createMemoryStorage } from './memoryStorage';
 import { renderWithBudget } from './renderWithBudget';
 import { renderWithFakeBudget } from './renderWithFakeBudget';
-import { STORAGE_KEY, serializeBudget } from '@/state/storage';
+import { STORAGE_KEY, serializeBook } from '@/state/storage';
 
 const seen: { value: BudgetContextValue | null } = { value: null };
 
@@ -42,7 +42,7 @@ describe('TOTAL_TOO_LARGE_MESSAGE', () => {
       expenses: [],
     };
     seen.value = null;
-    renderWithBudget(<Probe />, { storage: createMemoryStorage({ [STORAGE_KEY]: serializeBudget(big) }) });
+    renderWithBudget(<Probe />, { storage: createMemoryStorage({ [STORAGE_KEY]: serializeBook({ months: [big] }) }) });
     await screen.findByText('ready');
     let message = '';
     try {
@@ -87,7 +87,7 @@ describe('renderWithFakeBudget', () => {
       expect(vi.isMockFunction(received[key]), key).toBe(true);
     }
     expect(Object.keys(actions).sort()).toEqual(
-      ['addCategory', 'addExpense', 'deleteExpense', 'removeCategory', 'resetMonth', 'setIncome', 'updateCategory'],
+      ['addCategory', 'addExpense', 'deleteAllData', 'deleteExpense', 'removeCategory', 'setIncome', 'updateCategory'],
     );
   });
 
@@ -98,14 +98,14 @@ describe('renderWithFakeBudget', () => {
     expect(a.updateCategory('x', { name: 'y' })).toBeUndefined();
     expect(a.removeCategory('x')).toBeUndefined();
     expect(a.deleteExpense('x')).toBeUndefined();
-    expect(a.resetMonth()).toBeUndefined();
+    expect(a.deleteAllData()).toBeUndefined();
     expect(a.addCategory({ name: 'n', plannedCents: 1 })).toBe('fake-id');
     expect(a.addExpense({ categoryId: 'c', amountCents: 1, note: '', date: '2026-11-01' })).toBe('fake-id');
     expect(actions.setIncome).toHaveBeenCalledWith(1);
     expect(actions.updateCategory).toHaveBeenCalledWith('x', { name: 'y' });
     expect(actions.removeCategory).toHaveBeenCalledWith('x');
     expect(actions.deleteExpense).toHaveBeenCalledWith('x');
-    expect(actions.resetMonth).toHaveBeenCalledTimes(1);
+    expect(actions.deleteAllData).toHaveBeenCalledTimes(1);
     expect(actions.addCategory).toHaveBeenCalledTimes(1);
     expect(actions.addExpense).toHaveBeenCalledTimes(1);
     // no state change
@@ -120,22 +120,40 @@ describe('renderWithFakeBudget', () => {
     expect(actions.addExpense).toHaveBeenCalledTimes(1);
   });
 
-  it('defaults today to 2026-11-14; currentMonth and isOtherMonth follow it', () => {
+  it('defaults today to 2026-11-14 and derives the month list from the state', () => {
     renderWithFakeBudget(<Probe />, { state: SCENARIO });
-    expect(readyValue()).toMatchObject({ today: '2026-11-14', currentMonth: '2026-11', isOtherMonth: false });
+    expect(readyValue()).toMatchObject({
+      today: '2026-11-14',
+      currentMonth: '2026-11',
+      viewedMonth: '2026-11',
+      months: ['2026-11'],
+      isViewedMonthStored: true,
+      copiedFromMonth: null,
+    });
+    expect(readyValue().book).toEqual({ months: [SCENARIO] });
   });
 
-  it('isOtherMonth is true for a state from another month, and follows an explicit today', () => {
+  it('a state from another month is stored, and the current month is added to the list', () => {
     renderWithFakeBudget(<Probe />, { state: OTHER_MONTH });
-    expect(readyValue()).toMatchObject({ currentMonth: '2026-11', isOtherMonth: true });
+    expect(readyValue()).toMatchObject({ currentMonth: '2026-11', viewedMonth: '2026-09', months: ['2026-09', '2026-11'] });
     expect(readyValue().state.month).toBe('2026-09');
   });
 
-  it('an explicit today changes currentMonth and isOtherMonth', () => {
+  it('an explicit today changes currentMonth and months', () => {
     renderWithFakeBudget(<Probe />, { state: SCENARIO, today: '2026-12-02' });
-    expect(readyValue()).toMatchObject({ today: '2026-12-02', currentMonth: '2026-12', isOtherMonth: true });
-    renderWithFakeBudget(<Probe />, { state: OTHER_MONTH, today: '2026-09-30' });
-    expect(readyValue()).toMatchObject({ currentMonth: '2026-09', isOtherMonth: false });
+    expect(readyValue()).toMatchObject({ today: '2026-12-02', currentMonth: '2026-12', months: ['2026-11', '2026-12'] });
+  });
+
+  it('an unstored viewed month reports where it was copied from', () => {
+    renderWithFakeBudget(<Probe />, { state: { ...SCENARIO, month: '2026-12', expenses: [] }, book: { months: [SCENARIO] } });
+    expect(readyValue()).toMatchObject({ isViewedMonthStored: false, copiedFromMonth: '2026-11' });
+  });
+
+  it('returns a viewMonth mock that is also in the value', () => {
+    const { viewMonth } = renderWithFakeBudget(<Probe />, { state: SCENARIO });
+    expect(vi.isMockFunction(viewMonth)).toBe(true);
+    readyValue().viewMonth('2026-10');
+    expect(viewMonth).toHaveBeenCalledExactlyOnceWith('2026-10');
   });
 
   it('has loadStatus loaded, savedDataReplaced false and generation 0', () => {

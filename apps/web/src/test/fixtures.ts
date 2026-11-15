@@ -1,4 +1,5 @@
 import type { BudgetState } from '@/lib/budget';
+import type { BudgetBook } from '@/lib/months';
 
 export const SCENARIO_TODAY = '2026-11-14';
 
@@ -18,3 +19,15 @@ export const SCENARIO: BudgetState = {
     { id: 'e3', categoryId: 'suggested-eating-out', amountCents: 11235, note: 'Birthday dinner', date: '2026-11-05' },
   ],
 };
+
+export const OCTOBER: BudgetState = {
+  month: '2026-10',
+  incomeCents: 300000,
+  categories: SCENARIO.categories.map((category) => ({ ...category })),
+  expenses: [
+    { id: 'o1', categoryId: 'suggested-rent', amountCents: 150000, note: 'October rent', date: '2026-10-01' },
+    { id: 'o2', categoryId: 'suggested-groceries', amountCents: 199482, note: '', date: '2026-10-12' },
+  ],
+};
+
+export const BOOK: BudgetBook = { months: [OCTOBER, SCENARIO] };

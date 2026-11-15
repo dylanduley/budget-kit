@@ -11,10 +11,15 @@ import {
   isBudgetState,
   loadBudget,
   parseStoredBudget,
-  saveBudget,
+  saveBook,
+  serializeBook,
 } from './storage';
 import type { StorageLike } from './storage';
-import { serializeBudget } from './storage';
+
+// The version 1 wire format: still accepted on load, no longer written.
+function serializeV1(state: BudgetState): string {
+  return JSON.stringify({ version: 1, state });
+}
 
 const CORRUPT = { status: 'invalid', reason: 'corrupt' } as const;
 const UNSUPPORTED = { status: 'invalid', reason: 'unsupported-version' } as const;
@@ -49,24 +54,24 @@ function manyExpenses(n: number, amountCents: number): string {
 describe('storage constants', () => {
   it('uses the documented key and version', () => {
     expect(STORAGE_KEY).toBe('budget-kit:budget');
-    expect(STORAGE_VERSION).toBe(1);
+    expect(STORAGE_VERSION).toBe(2);
   });
 });
 
-describe('serializeBudget / parseStoredBudget', () => {
-  it('serializes to JSON of { version: 1, state }', () => {
-    expect(JSON.parse(serializeBudget(SCENARIO))).toEqual({ version: 1, state: SCENARIO });
+describe('parseStoredBudget (version 1 input)', () => {
+  it('serializes to JSON of { version: 2, book }', () => {
+    expect(JSON.parse(serializeBook({ months: [SCENARIO] }))).toEqual({ version: 2, book: { months: [SCENARIO] } });
   });
 
   it('round trips SCENARIO to an equal, fresh copy', () => {
-    const result = parseStoredBudget(serializeBudget(SCENARIO));
+    const result = parseStoredBudget(serializeV1(SCENARIO));
     expect(result.status).toBe('loaded');
     if (result.status !== 'loaded') return;
-    expect(result.state).toEqual(SCENARIO);
-    expect(result.state).not.toBe(SCENARIO);
-    expect(result.state.categories).not.toBe(SCENARIO.categories);
-    expect(result.state.categories[0]).not.toBe(SCENARIO.categories[0]);
-    expect(result.state.expenses[0]).not.toBe(SCENARIO.expenses[0]);
+    expect(result.book.months[0]!).toEqual(SCENARIO);
+    expect(result.book.months[0]!).not.toBe(SCENARIO);
+    expect(result.book.months[0]!.categories).not.toBe(SCENARIO.categories);
+    expect(result.book.months[0]!.categories[0]).not.toBe(SCENARIO.categories[0]);
+    expect(result.book.months[0]!.expenses[0]).not.toBe(SCENARIO.expenses[0]);
   });
 
   it('round trips an empty budget and extreme amounts', () => {
@@ -76,9 +81,9 @@ describe('serializeBudget / parseStoredBudget', () => {
       categories: [{ id: 'a', name: '', plannedCents: 0 }, { id: 'b', name: 'Big', plannedCents: MAX_CENTS }],
       expenses: [{ id: 'x', categoryId: 'gone', amountCents: 1, note: '', date: '2024-02-29' }],
     };
-    expect(parseStoredBudget(serializeBudget(edge))).toEqual({ status: 'loaded', state: edge });
+    expect(parseStoredBudget(serializeV1(edge))).toEqual({ status: 'loaded', book: { months: [edge] }, fromVersion: 1 });
     const empty: BudgetState = { month: '2026-01', incomeCents: 0, categories: [], expenses: [] };
-    expect(parseStoredBudget(serializeBudget(empty))).toEqual({ status: 'loaded', state: empty });
+    expect(parseStoredBudget(serializeV1(empty))).toEqual({ status: 'loaded', book: { months: [empty] }, fromVersion: 1 });
   });
 
   it('returns empty for null', () => {
@@ -89,7 +94,7 @@ describe('serializeBudget / parseStoredBudget', () => {
     const results = [
       parseStoredBudget(null),
       parseStoredBudget('not json'),
-      parseStoredBudget('{"version":2,"state":{}}'),
+      parseStoredBudget('{"version":3,"state":{}}'),
     ];
     expect(results).toEqual([{ status: 'empty' }, CORRUPT, UNSUPPORTED]);
   });
@@ -109,17 +114,17 @@ describe('serializeBudget / parseStoredBudget', () => {
     ['missing state', '{"version":1}'],
     ['null state', '{"version":1,"state":null}'],
     ['array state', '{"version":1,"state":[]}'],
-    ['truncated JSON', serializeBudget(SCENARIO).slice(0, 40)],
+    ['truncated JSON', serializeV1(SCENARIO).slice(0, 40)],
   ])('is corrupt for %s', (_name, raw) => {
     expect(parseStoredBudget(raw)).toEqual(CORRUPT);
   });
 
-  it.each([2, 0, -1, 99])('is unsupported-version for version %i', (version) => {
+  it.each([3, 0, -1, 99])('is unsupported-version for version %i', (version) => {
     expect(parseStoredBudget(JSON.stringify({ version, state: SCENARIO }))).toEqual(UNSUPPORTED);
   });
 
   it('checks the version before the state (unsupported version with a garbage state)', () => {
-    expect(parseStoredBudget('{"version":2,"state":"whatever"}')).toEqual(UNSUPPORTED);
+    expect(parseStoredBudget('{"version":3,"state":"whatever"}')).toEqual(UNSUPPORTED);
   });
 });
 
@@ -184,14 +189,14 @@ describe('invalid version 1 states are rejected as corrupt', () => {
   });
 
   it('rejects Infinity from crafted JSON (1e999) and never accepts NaN', () => {
-    const raw = serializeBudget(SCENARIO).replace('"incomeCents":320000', '"incomeCents":1e999');
+    const raw = serializeV1(SCENARIO).replace('"incomeCents":320000', '"incomeCents":1e999');
     expect(raw).toContain('1e999');
     expect(parseStoredBudget(raw)).toEqual(CORRUPT);
     expect(parseStoredBudget(raw.replace('1e999', '-1e999'))).toEqual(CORRUPT);
     expect(isBudgetState({ ...SCENARIO, incomeCents: NaN })).toBe(false);
     expect(isBudgetState({ ...SCENARIO, incomeCents: Infinity })).toBe(false);
     expect(isBudgetState({ ...SCENARIO, incomeCents: -Infinity })).toBe(false);
-    const planned = serializeBudget(SCENARIO).replace('"plannedCents":150000', '"plannedCents":1e999');
+    const planned = serializeV1(SCENARIO).replace('"plannedCents":150000', '"plannedCents":1e999');
     expect(parseStoredBudget(planned)).toEqual(CORRUPT);
   });
 
@@ -293,15 +298,15 @@ describe('unknown keys and removed categories', () => {
     const result = parseStoredBudget(raw);
     expect(result.status).toBe('loaded');
     if (result.status !== 'loaded') return;
-    expect(result.state).toEqual(SCENARIO);
-    expect(Object.keys(result.state).sort()).toEqual(['categories', 'expenses', 'incomeCents', 'month']);
-    expect(Object.keys(result.state.categories[0]!).sort()).toEqual(['id', 'name', 'plannedCents']);
-    expect(Object.keys(result.state.expenses[0]!).sort()).toEqual(['amountCents', 'categoryId', 'date', 'id', 'note']);
+    expect(result.book.months[0]!).toEqual(SCENARIO);
+    expect(Object.keys(result.book.months[0]!).sort()).toEqual(['categories', 'expenses', 'incomeCents', 'month']);
+    expect(Object.keys(result.book.months[0]!.categories[0]!).sort()).toEqual(['id', 'name', 'plannedCents']);
+    expect(Object.keys(result.book.months[0]!.expenses[0]!).sort()).toEqual(['amountCents', 'categoryId', 'date', 'id', 'note']);
   });
 
   it('ignores unknown keys next to version', () => {
     const raw = JSON.stringify({ version: 1, extra: true, state: SCENARIO });
-    expect(parseStoredBudget(raw)).toEqual({ status: 'loaded', state: SCENARIO });
+    expect(parseStoredBudget(raw)).toEqual({ status: 'loaded', book: { months: [SCENARIO] }, fromVersion: 1 });
   });
 
   it('loads an expense whose categoryId matches no category', () => {
@@ -309,7 +314,7 @@ describe('unknown keys and removed categories', () => {
     const result = parseStoredBudget(raw);
     expect(result.status).toBe('loaded');
     if (result.status !== 'loaded') return;
-    expect(result.state.expenses[0]!.categoryId).toBe('removed-long-ago');
+    expect(result.book.months[0]!.expenses[0]!.categoryId).toBe('removed-long-ago');
   });
 
   it('allows an expense to share an id with a category (uniqueness is per list)', () => {
@@ -322,32 +327,32 @@ describe('unknown keys and removed categories', () => {
     const result = parseStoredBudget(raw);
     expect(result.status).toBe('loaded');
     if (result.status !== 'loaded') return;
-    expect(Object.keys(result.state)).not.toContain('__proto__');
+    expect(Object.keys(result.book.months[0]!)).not.toContain('__proto__');
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 });
 
-describe('loadBudget / saveBudget', () => {
-  it('loads what saveBudget saved', () => {
+describe('loadBudget / saveBook', () => {
+  it('loads what saveBook saved', () => {
     const storage = createMemoryStorage();
     expect(loadBudget(storage)).toEqual({ status: 'empty' });
-    expect(saveBudget(storage, SCENARIO)).toBe(true);
-    expect(storage.dump()[STORAGE_KEY]).toBe(serializeBudget(SCENARIO));
-    expect(loadBudget(storage)).toEqual({ status: 'loaded', state: SCENARIO });
+    expect(saveBook(storage, { months: [SCENARIO] })).toBe(true);
+    expect(storage.dump()[STORAGE_KEY]).toBe(serializeBook({ months: [SCENARIO] }));
+    expect(loadBudget(storage)).toEqual({ status: 'loaded', book: { months: [SCENARIO] }, fromVersion: 2 });
   });
 
   it('reports corrupt and unsupported-version through loadBudget as separate results', () => {
     expect(loadBudget(createMemoryStorage({ [STORAGE_KEY]: 'garbage' }))).toEqual(CORRUPT);
-    expect(loadBudget(createMemoryStorage({ [STORAGE_KEY]: '{"version":2,"state":{}}' }))).toEqual(UNSUPPORTED);
+    expect(loadBudget(createMemoryStorage({ [STORAGE_KEY]: '{"version":3,"state":{}}' }))).toEqual(UNSUPPORTED);
   });
 
   it('reads only STORAGE_KEY', () => {
-    const storage = createMemoryStorage({ other: serializeBudget(SCENARIO) });
+    const storage = createMemoryStorage({ other: serializeV1(SCENARIO) });
     expect(loadBudget(storage)).toEqual({ status: 'empty' });
   });
 
   it('loadBudget never writes', () => {
-    for (const raw of [undefined, 'garbage', '{"version":2}', serializeBudget(SCENARIO)]) {
+    for (const raw of [undefined, 'garbage', '{"version":3}', serializeV1(SCENARIO)]) {
       const storage = createMemoryStorage(raw === undefined ? {} : { [STORAGE_KEY]: raw });
       loadBudget(storage);
       expect(storage.setItemCalls).toBe(0);
@@ -361,24 +366,24 @@ describe('loadBudget / saveBudget', () => {
     expect(loadBudget(storage)).toEqual({ status: 'unavailable' });
   });
 
-  it('saveBudget returns false (no throw) when setItem throws', () => {
+  it('saveBook returns false (no throw) when setItem throws', () => {
     const storage = createMemoryStorage({}, { throwOnSet: true });
-    expect(() => saveBudget(storage, SCENARIO)).not.toThrow();
-    expect(saveBudget(storage, SCENARIO)).toBe(false);
+    expect(() => saveBook(storage, { months: [SCENARIO] })).not.toThrow();
+    expect(saveBook(storage, { months: [SCENARIO] })).toBe(false);
     expect(storage.dump()).toEqual({});
   });
 
   it('returns the same for null storage', () => {
     expect(loadBudget(null)).toEqual({ status: 'unavailable' });
-    expect(saveBudget(null, SCENARIO)).toBe(false);
+    expect(saveBook(null, { months: [SCENARIO] })).toBe(false);
   });
 
   it('does not throw for undefined storage (private mode, no localStorage)', () => {
     const missing = undefined as unknown as StorageLike;
     expect(() => loadBudget(missing)).not.toThrow();
-    expect(() => saveBudget(missing, SCENARIO)).not.toThrow();
+    expect(() => saveBook(missing, { months: [SCENARIO] })).not.toThrow();
     expect(loadBudget(missing)).toEqual({ status: 'unavailable' });
-    expect(saveBudget(missing, SCENARIO)).toBe(false);
+    expect(saveBook(missing, { months: [SCENARIO] })).toBe(false);
   });
 
   it('survives any exception type, including non-Error values', () => {
@@ -392,7 +397,7 @@ describe('loadBudget / saveBudget', () => {
       removeItem() {},
     };
     expect(loadBudget(throwing)).toEqual({ status: 'unavailable' });
-    expect(saveBudget(throwing, SCENARIO)).toBe(false);
+    expect(saveBook(throwing, { months: [SCENARIO] })).toBe(false);
   });
 
   it('treats a getItem that returns a non-string as no crash', () => {
@@ -496,7 +501,7 @@ function mutateOnce(root: unknown, rng: Rng): unknown {
 function fuzzInput(rng: Rng): string {
   const mode = int(rng, 10);
   if (mode === 0) return JSON.stringify(randomJson(rng));
-  const base = JSON.parse(serializeBudget(SCENARIO)) as { state: BudgetState };
+  const base = JSON.parse(serializeV1(SCENARIO)) as { state: BudgetState };
   if (mode === 3 || mode === 4) {
     // Overflow-bearing: many extra amounts at or near MAX_CENTS, so totals sit around the safe limit.
     const extra = 80 + int(rng, 20);
@@ -535,24 +540,24 @@ describe('fuzz', () => {
       } catch (error) {
         throw new Error(`loadBudget threw for input ${raw} (seed ${seed}, #${i}): ${String(error)}`);
       }
-      if (result.status === 'loaded' && result.state.categories.length + result.state.expenses.length > 60) counts.overflowLoaded++;
+      if (result.status === 'loaded' && result.book.months[0]!.categories.length + result.book.months[0]!.expenses.length > 60) counts.overflowLoaded++;
       if (result.status === 'invalid' && raw.includes('"o79"')) counts.overflowRejected++;
       if (result.status === 'loaded') {
         counts.loaded++;
         try {
-          expect(isBudgetState(result.state)).toBe(true);
-          expect(canBeTotalled(result.state)).toBe(true);
-          expect(Object.keys(result.state).sort()).toEqual(['categories', 'expenses', 'incomeCents', 'month']);
-          const totals = getTotals(result.state);
+          expect(isBudgetState(result.book.months[0]!)).toBe(true);
+          expect(canBeTotalled(result.book.months[0]!)).toBe(true);
+          expect(Object.keys(result.book.months[0]!).sort()).toEqual(['categories', 'expenses', 'incomeCents', 'month']);
+          const totals = getTotals(result.book.months[0]!);
           for (const n of Object.values(totals)) {
             if (typeof n === 'number') expect(Number.isSafeInteger(n)).toBe(true);
           }
-          for (const summary of getCategorySummaries(result.state)) {
+          for (const summary of getCategorySummaries(result.book.months[0]!)) {
             expect(Number.isSafeInteger(summary.spentCents)).toBe(true);
             expect(Number.isSafeInteger(summary.remainingCents)).toBe(true);
           }
           // the loaded state serializes and loads again to itself
-          expect(parseStoredBudget(serializeBudget(result.state))).toEqual({ status: 'loaded', state: result.state });
+          expect(parseStoredBudget(serializeV1(result.book.months[0]!))).toEqual({ status: 'loaded', book: { months: [result.book.months[0]!] }, fromVersion: 1 });
         } catch (error) {
           throw new Error(`Loaded state misbehaved for input ${raw} (seed ${seed}, #${i}): ${String(error)}`);
         }
