@@ -120,7 +120,7 @@ describe('server and client boundary (source)', () => {
     for (const file of ['state/storage.ts', 'state/budgetReducer.ts', 'lib/clock.ts', 'lib/budget.ts', 'lib/format.ts']) {
       const code = stripComments(read(file));
       expect(code, file).not.toMatch(/['"]use client['"]/);
-      expect(code, file).not.toMatch(/from\s+['"]react(-dom)?(\/[^'"]*)?['"]/);
+      expect(code, file).not.toMatch(/(from|import)\s*\(?\s*['"]react(-dom)?(\/[^'"]*)?['"]/);
       expect(code, file).not.toMatch(/require\(\s*['"]react/);
       expect(code, file).not.toMatch(/import\(\s*['"]react/);
     }
