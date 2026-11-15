@@ -106,7 +106,7 @@ Each has the assumption the tasks currently use.
 - **Not used**: `allowNegative`, and any correction text for MoneyField's `Amount is too large`.
 - **Page order**: rollover notice (when it applies), Dashboard, Add expense, Expense list, Set up the month, Reset month. First-run prompts on the dashboard say `…in Set up the month below` and are plain text (no scripted scrolling or focus moves). Applied in 03, 05, 07, 08 and the BudgetApp order above.
 - **Unplanned money** also shows `Not set` before income is entered (05).
-- **Saved-data messages** are wanted (08); unreadable data is overwritten on the first change, with no backup key.
+- **Saved-data messages** are wanted (08); unreadable data is overwritten on the first change. Since app task 28, unreadable or version 1 data is first copied once, byte for byte, to `budget-kit:budget:backup` (never overwritten, removed by Delete all data); there is no restore screen.
 - **Category rename** saves on blur (03).
 - **Reset** restores the five suggested categories at $0 (07).
 - **No confirmation or undo** on Delete expense (06) or Remove category (03).

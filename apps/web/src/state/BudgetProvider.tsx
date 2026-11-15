@@ -30,7 +30,16 @@ import {
   putMonth,
 } from '@/lib/months';
 import { type BudgetAction, budgetReducer } from '@/state/budgetReducer';
-import { type LoadResult, type StorageLike, canBeTotalled, loadBudget, saveBook } from '@/state/storage';
+import {
+  type LoadResult,
+  type StorageLike,
+  backUpStoredBudget,
+  canBeTotalled,
+  loadBudget,
+  needsBackup,
+  removeBackup,
+  saveBook,
+} from '@/state/storage';
 
 export interface BudgetActions {
   setIncome(incomeCents: number): void;
@@ -75,6 +84,7 @@ interface Model {
   generation: number;
   loadStatus: LoadResult['status'];
   savedDataReplaced: boolean;
+  backupPending: boolean;
 }
 
 export const TOTAL_TOO_LARGE_MESSAGE = 'That change would make a total too large.';
@@ -138,6 +148,7 @@ export function BudgetProvider({
       generation: 0,
       loadStatus: result.status,
       savedDataReplaced: false,
+      backupPending: needsBackup(result),
     };
     storageRef.current = resolved;
     modelRef.current = loaded;
@@ -158,10 +169,18 @@ export function BudgetProvider({
       if (nextState === base) return;
       if (!canBeTotalled(nextState)) throw new RangeError(TOTAL_TOO_LARGE_MESSAGE);
       const book = putMonth(m.book, nextState);
-      const saved = saveBook(storageRef.current, book);
+      const storage = storageRef.current;
+      const backup = m.backupPending ? backUpStoredBudget(storage) : null;
+      let saved = saveBook(storage, book);
+      // The backup may have taken the space the save needed; the requested save wins.
+      if (!saved && backup === 'written') {
+        removeBackup(storage);
+        saved = saveBook(storage, book);
+      }
       const next: Model = {
         ...m,
         book,
+        backupPending: m.backupPending && !saved,
         savedDataReplaced: m.savedDataReplaced || (saved && m.loadStatus === 'invalid'),
       };
       modelRef.current = next;
@@ -185,8 +204,10 @@ export function BudgetProvider({
       deleteAllData: () => {
         const m = current();
         const saved = saveBook(storageRef.current, EMPTY_BOOK);
+        removeBackup(storageRef.current);
         const next: Model = {
           ...m,
+          backupPending: false,
           book: EMPTY_BOOK,
           viewedMonth: monthOf(m.today),
           generation: m.generation + 1,

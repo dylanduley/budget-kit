@@ -12,6 +12,7 @@ import type { BudgetBook } from '@/lib/months';
 
 export const STORAGE_KEY = 'budget-kit:budget';
 export const STORAGE_VERSION = 2;
+export const BACKUP_KEY = 'budget-kit:budget:backup';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -153,6 +154,38 @@ export function saveBook(storage: StorageLike | null, book: BudgetBook): boolean
   if (storage === null) return false;
   try {
     storage.setItem(STORAGE_KEY, serializeBook(book));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export type BackupResult = 'written' | 'present' | 'nothing-stored' | 'failed';
+
+/** True for a load the first save would overwrite with something the old app cannot read. */
+export function needsBackup(result: LoadResult): boolean {
+  return result.status === 'invalid' || (result.status === 'loaded' && result.fromVersion === 1);
+}
+
+/** Copies the raw STORAGE_KEY text to BACKUP_KEY unless BACKUP_KEY already holds something. Never throws. */
+export function backUpStoredBudget(storage: StorageLike | null): BackupResult {
+  if (storage === null) return 'failed';
+  try {
+    if (storage.getItem(BACKUP_KEY) !== null) return 'present';
+    const raw = storage.getItem(STORAGE_KEY);
+    if (raw === null) return 'nothing-stored';
+    storage.setItem(BACKUP_KEY, raw);
+    return 'written';
+  } catch {
+    return 'failed';
+  }
+}
+
+/** Removes BACKUP_KEY. Never throws. Returns false if removeItem threw or storage is null. */
+export function removeBackup(storage: StorageLike | null): boolean {
+  if (storage === null) return false;
+  try {
+    storage.removeItem(BACKUP_KEY);
     return true;
   } catch {
     return false;
