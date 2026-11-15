@@ -5,7 +5,7 @@ const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function formatMoney(cents: number): string {
-  // formatCents throws RangeError for non-integers, so check the sign only after it accepts the value.
+  // NaN fails `< 0` and non-integers reach formatCents, which throws RangeError.
   if (cents < 0) return `-$${formatCents(-cents)}`;
   return `$${formatCents(cents)}`;
 }

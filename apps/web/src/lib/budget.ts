@@ -29,13 +29,13 @@ export interface CategorySummary {
   hasPlan: boolean;
 }
 
-export const SUGGESTED_CATEGORIES: readonly Readonly<Category>[] = [
-  { id: 'suggested-rent', name: 'Rent', plannedCents: 0 },
-  { id: 'suggested-groceries', name: 'Groceries', plannedCents: 0 },
-  { id: 'suggested-transport', name: 'Transport', plannedCents: 0 },
-  { id: 'suggested-utilities', name: 'Utilities', plannedCents: 0 },
-  { id: 'suggested-eating-out', name: 'Eating out', plannedCents: 0 },
-];
+export const SUGGESTED_CATEGORIES: readonly Readonly<Category>[] = Object.freeze([
+  Object.freeze({ id: 'suggested-rent', name: 'Rent', plannedCents: 0 }),
+  Object.freeze({ id: 'suggested-groceries', name: 'Groceries', plannedCents: 0 }),
+  Object.freeze({ id: 'suggested-transport', name: 'Transport', plannedCents: 0 }),
+  Object.freeze({ id: 'suggested-utilities', name: 'Utilities', plannedCents: 0 }),
+  Object.freeze({ id: 'suggested-eating-out', name: 'Eating out', plannedCents: 0 }),
+]);
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -164,7 +164,15 @@ export function updateCategory(state: BudgetState, id: string, patch: CategoryPa
   if (!state.categories.some((category) => category.id === id)) return state;
   return {
     ...state,
-    categories: state.categories.map((category) => (category.id === id ? { ...category, ...patch } : category)),
+    categories: state.categories.map((category) => 
+      category.id === id
+        ? {
+            id: category.id,
+            name: patch.name ?? category.name,
+            plannedCents: patch.plannedCents ?? category.plannedCents,
+          }
+        : category,
+    ),
   };
 }
 
