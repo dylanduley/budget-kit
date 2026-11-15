@@ -4,15 +4,22 @@ import type { ReactNode } from 'react';
 import '@budget-kit/ui/tokens.css';
 import './globals.css';
 
+import { AppShell } from '@/features/shell/AppShell';
+import { BudgetProvider } from '@/state/BudgetProvider';
+
 export const metadata: Metadata = {
-  title: 'Budget Kit',
-  description: 'A calm, one-month budget planner.',
+  title: { default: 'Budget Kit', template: '%s · Budget Kit' },
+  description: 'A calm monthly budget planner.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <BudgetProvider>
+          <AppShell>{children}</AppShell>
+        </BudgetProvider>
+      </body>
     </html>
   );
 }

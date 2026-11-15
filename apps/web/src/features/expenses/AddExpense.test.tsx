@@ -1,19 +1,20 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { readFileSync, readdirSync } from 'node:fs';
+import type { ReactElement } from 'react';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { type BudgetState, MAX_CENTS, datesInMonth, defaultExpenseDate } from '@/lib/budget';
 import { formatDate } from '@/lib/format';
-import { TOTAL_TOO_LARGE_MESSAGE } from '@/state/BudgetProvider';
+import { TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
 import { expectNoAxeViolations } from '@/test/axe';
 import { SCENARIO } from '@/test/fixtures';
 import { renderWithBudget } from '@/test/renderWithBudget';
 import { renderWithFakeBudget } from '@/test/renderWithFakeBudget';
 
 import { AddExpense } from './AddExpense';
-import { BudgetApp } from '../BudgetApp';
+import { renderApp } from '@/test/renderApp';
 
 const UNEXPECTED = 'Something went wrong. Your budget was not changed.';
 const AMOUNT_ERROR = 'Enter an amount like 12.50';
@@ -74,10 +75,23 @@ describe('closed and no-categories states', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('no categories: no button, shows "Add a category in Set up the month below before adding expenses."', async () => {
-    renderWithBudget(<AddExpense />, { state: { ...SCENARIO, categories: [], expenses: [] } });
-    expect(await screen.findByText('Add a category in Set up the month below before adding expenses.')).toBeInTheDocument();
+  it('no categories: renders nothing once the provider is ready (the sentence moved to the expense list)', async () => {
+    // The provider also renders nothing here while loading, so wait for the ready state first.
+    function ReadyProbe(): ReactElement {
+      return <p>{useBudget().status === 'ready' ? 'probe: ready' : 'probe: loading'}</p>;
+    }
+    renderWithBudget(
+      <>
+        <ReadyProbe />
+        <AddExpense />
+      </>,
+      { state: { ...SCENARIO, categories: [], expenses: [] } },
+    );
+    expect(await screen.findByText('probe: ready')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText(/category/i)).not.toBeInTheDocument();
+    expect(document.body.textContent).toBe('probe: ready');
   });
 });
 
@@ -903,10 +917,10 @@ describe('required semantics and structure', () => {
     expect(button.parentElement).toBe(container);
   });
 
-  it('mounted in BudgetApp the trigger is a direct child of main', async () => {
-    renderWithBudget(<BudgetApp />, { state: SCENARIO });
+  it('mounted in the app shell the trigger is in the banner', async () => {
+    renderApp({ state: SCENARIO });
     const button = await screen.findByRole('button', { name: 'Add expense' });
-    expect(button.parentElement).toBe(screen.getByRole('main'));
+    expect(screen.getAllByRole('banner')[0]).toContainElement(button);
   });
 });
 
@@ -919,7 +933,8 @@ describe('accessibility', () => {
 
   it('axe: no-categories state', async () => {
     renderWithBudget(<main><AddExpense /></main>, { state: { ...SCENARIO, categories: [], expenses: [] } });
-    await screen.findByText('Add a category in Set up the month below before adding expenses.');
+    await screen.findByRole('main');
+    expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
     // Wrapped in a landmark by the test: the page shell (task 08) owns <main>.
     await expectNoAxeViolations();
   });

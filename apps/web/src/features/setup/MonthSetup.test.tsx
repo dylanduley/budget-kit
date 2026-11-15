@@ -11,7 +11,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { SCENARIO } from '@/test/fixtures';
 import { renderWithBudget } from '@/test/renderWithBudget';
 import { renderWithFakeBudget } from '@/test/renderWithFakeBudget';
-import { BudgetApp } from '@/features/BudgetApp';
+import { PlanPage } from '@/features/plan/PlanPage';
 import { MonthSetup } from './MonthSetup';
 
 const GENERIC = 'Something went wrong. Your budget was not changed.';
@@ -933,11 +933,11 @@ describe('remount on delete all data', () => {
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
-  it('BudgetApp mounts MonthSetup with a key that changes on delete: the screen remounts', async () => {
+  it('PlanPage mounts MonthSetup with a key that changes on delete: the screen remounts', async () => {
     function AppWithDelete(): ReactElement {
       return (
         <>
-          <BudgetApp />
+          <PlanPage />
           <DeleteProbe />
         </>
       );
@@ -1142,8 +1142,8 @@ describe('source rules', () => {
     expect(source).not.toMatch(/role="status"|aria-live|aria-atomic|role='/);
   });
 
-  it('BudgetApp adds only the import and the keyed MonthSetup line', () => {
-    const app = read('features/BudgetApp.tsx');
+  it('PlanPage mounts only the keyed MonthSetup', () => {
+    const app = read('features/plan/PlanPage.tsx');
     expect(app).toContain("import { MonthSetup } from '@/features/setup/MonthSetup';");
     expect(app).toContain('<MonthSetup key={`${budget.viewedMonth}:${budget.generation}`} />');
     expect((app.match(/<MonthSetup\b/g) ?? []).length).toBe(1);

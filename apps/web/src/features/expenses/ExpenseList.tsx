@@ -75,19 +75,20 @@ export function ExpenseList(): ReactElement | null {
   ];
 
   return (
-    <Card title="Expenses" description="Newest first.">
+    <Card title={`Expenses in ${formatMonth(state.month)}`} description="Newest first.">
       <Table
-        caption={`Expenses in ${formatMonth(state.month)}`}
+        caption={`Expense table for ${formatMonth(state.month)}`}
         captionHidden
         columns={columns}
         rows={rows}
         getRowKey={(e) => e.id}
         emptyState={
           <p ref={emptyRef} tabIndex={-1}>
-            No expenses yet this month.
+            No expenses in {formatMonth(state.month)}.
           </p>
         }
       />
+      {state.categories.length === 0 ? <p>Add a category on the Plan page before adding expenses.</p> : null}
       {error !== null ? (
         <p role="alert" data-part="action-error">
           {error}

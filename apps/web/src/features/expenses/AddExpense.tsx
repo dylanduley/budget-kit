@@ -138,7 +138,7 @@ export function AddExpense(): ReactElement | null {
   if (budget.status !== 'ready') return null;
   const { state, today, actions } = budget;
 
-  if (state.categories.length === 0) return <p>Add a category in Set up the month below before adding expenses.</p>;
+  if (state.categories.length === 0) return null;
 
   const close = (): void => setOpen(false);
 

@@ -2,12 +2,10 @@ import { screen } from '@testing-library/react';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { BudgetApp } from '@/features/BudgetApp';
 import { SCENARIO } from '@/test/fixtures';
-import { renderWithBudget } from '@/test/renderWithBudget';
+import { renderApp } from '@/test/renderApp';
 
 const SRC = join(import.meta.dirname);
 
@@ -35,7 +33,11 @@ describe('the scan sees the app', () => {
   it('finds the screens, the shell and the state files', () => {
     const names = codeFiles.map(rel);
     for (const expected of [
-      'features/BudgetApp.tsx',
+      'features/shell/AppShell.tsx',
+      'features/overview/OverviewPage.tsx',
+      'features/spending/SpendingPage.tsx',
+      'features/plan/PlanPage.tsx',
+      'features/history/HistoryPage.tsx',
       'features/dashboard/Dashboard.tsx',
       'features/expenses/AddExpense.tsx',
       'features/expenses/ExpenseList.tsx',
@@ -67,7 +69,7 @@ describe('every MoneyField has a label ending in (USD)', () => {
   });
 
   it('populated state: every money textbox is named "... (USD)" and the others are name/note fields', () => {
-    renderWithBudget(createElement(BudgetApp), { state: SCENARIO });
+    renderApp({ state: SCENARIO, path: '/plan' });
     const boxes = screen.getAllByRole('textbox');
     const money = boxes.filter((b) => b.getAttribute('inputmode') === 'decimal');
     expect(money.length).toBe(1 + SCENARIO.categories.length + 1);
@@ -172,6 +174,8 @@ describe('no native controls, style props or style tooling', () => {
     ['<textarea', /<textarea/],
     ['<table', /<table/],
     ['<dialog', /<dialog/],
+    ['<a', /<a[\s>]/],
+    ['createElement of a (React.createElement(\'a\'))', /createElement\(\s*['"]a['"]/],
     ['style=', /style=/],
     ['styled(', /styled\(/],
     ['.module.css', /\.module\.css/],
@@ -180,9 +184,18 @@ describe('no native controls, style props or style tooling', () => {
 
   it.each(FORBIDDEN)('no match for %s in any non-test file under src', (_label, pattern) => {
     for (const file of allFiles.filter((f) => !isTest(f) && /\.(tsx?|css|mdx?)$/.test(f))) {
+      // The Next.js link mock in src/test renders an anchor on purpose.
+      if (rel(file).startsWith('test/') && pattern.source.startsWith('createElement')) continue;
       const code = read(file);
       expect(pattern.test(code), `${rel(file)} contains ${pattern}`).toBe(false);
     }
+  });
+
+  it('the createElement rule sees both spellings', () => {
+    const rule = FORBIDDEN.find(([label]) => label.startsWith('createElement'))?.[1];
+    expect(rule?.test("createElement('a', { href: '/' })")).toBe(true);
+    expect(rule?.test('React.createElement( "a", null)')).toBe(true);
+    expect(rule?.test("createElement('abbr')")).toBe(false);
   });
 
   it('the rules do see markup (a sample with a native button matches)', () => {

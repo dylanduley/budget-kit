@@ -16,14 +16,14 @@ import {
 } from '@/lib/budget';
 import { formatMoney } from '@/lib/format';
 import { BudgetProvider } from '@/state/BudgetProvider';
-import { BudgetApp } from '@/features/BudgetApp';
+import { renderApp } from '@/test/renderApp';
 import { expectNoAxeViolations } from '@/test/axe';
 import { SCENARIO } from '@/test/fixtures';
 import { createMemoryStorage } from '@/test/memoryStorage';
 import { renderWithBudget } from '@/test/renderWithBudget';
 import { Dashboard } from './Dashboard';
 
-const PROMPT = 'Enter your monthly income in Set up the month below';
+const PROMPT = 'Enter your monthly income on the Plan page';
 const REMOVED_LINE = 'from removed categories, which are not listed above.';
 
 // A page-like wrapper so heading order and landmark rules are checked as on the real page.
@@ -335,7 +335,7 @@ describe('first run', () => {
     expect(screen.getAllByText('Spent $0.00')).toHaveLength(5);
     expect(screen.queryByText('Over budget')).not.toBeInTheDocument();
     expect(screen.queryByText(/from removed categories/)).not.toBeInTheDocument();
-    expect(screen.queryByText('No categories yet. Add one in Set up the month below.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No categories yet. Add them on the Plan page.')).not.toBeInTheDocument();
   });
 
   it('lists the five suggested categories by name in order', async () => {
@@ -415,7 +415,7 @@ describe('no categories', () => {
   it('shows the empty-state line and no list or progressbar', async () => {
     await show(state);
     const region = screen.getByRole('region', { name: 'Spending by category' });
-    expect(within(region).getByText('No categories yet. Add one in Set up the month below.')).toBeInTheDocument();
+    expect(within(region).getByText('No categories yet. Add them on the Plan page.')).toBeInTheDocument();
     expect(within(region).queryAllByRole('listitem')).toHaveLength(0);
     expect(screen.queryAllByRole('progressbar')).toHaveLength(0);
   });
@@ -473,7 +473,7 @@ describe('removed category', () => {
   it('is shown beside the empty-state line when all categories are removed', async () => {
     const all: BudgetState = { ...SCENARIO, categories: [] };
     await show(all);
-    expect(screen.getByText('No categories yet. Add one in Set up the month below.')).toBeInTheDocument();
+    expect(screen.getByText('No categories yet. Add them on the Plan page.')).toBeInTheDocument();
     expect(screen.getByText(`The Spent total includes $1,694.82 ${REMOVED_LINE}`)).toBeInTheDocument();
   });
 
@@ -653,9 +653,9 @@ describe('structure and accessibility', () => {
   }
 });
 
-describe('mounted in BudgetApp', () => {
+describe('mounted in the Overview page', () => {
   it('renders the dashboard under the single h1 inside main and passes axe', async () => {
-    renderWithBudget(<BudgetApp />, { state: SCENARIO });
+    renderApp({ state: SCENARIO });
     await screen.findByRole('heading', { level: 2, name: 'Summary' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(within(screen.getByRole('main')).getByRole('region', { name: 'Spending by category' })).toBeInTheDocument();
@@ -670,7 +670,7 @@ describe('source rules', () => {
   const strip = (code: string): string =>
     code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
   const dashboard = strip(read('dashboard/Dashboard.tsx'));
-  const budgetApp = strip(read('BudgetApp.tsx'));
+  const budgetApp = strip(read('overview/OverviewPage.tsx'));
 
   it('starts with the use client directive', () => {
     expect(read('dashboard/Dashboard.tsx').startsWith("'use client';")).toBe(true);
@@ -716,7 +716,7 @@ describe('source rules', () => {
     expect(dashboard).toMatch(/sm:grid-cols-2/);
   });
 
-  it('adds only the import and the Dashboard element to BudgetApp', () => {
+  it('OverviewPage imports and mounts Dashboard once', () => {
     expect(budgetApp.match(/Dashboard/g)).toHaveLength(3);
     expect(budgetApp).toContain("import { Dashboard } from '@/features/dashboard/Dashboard';");
     expect(budgetApp.match(/<Dashboard \/>/g)).toHaveLength(1);

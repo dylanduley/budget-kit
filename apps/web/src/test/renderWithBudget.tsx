@@ -13,6 +13,7 @@ export interface RenderWithBudgetOptions<S extends StorageLike = MemoryStorage> 
   state?: BudgetState;
   book?: BudgetBook;
   today?: string;
+  getToday?: () => string;
 }
 
 export type RenderWithBudgetResult<S extends StorageLike = MemoryStorage> = RenderResult & {
@@ -49,7 +50,7 @@ export function renderWithBudget<S extends StorageLike = MemoryStorage>(
     return `id-${counter}`;
   };
   const wrap = (): ReactElement => (
-    <BudgetProvider storage={storage} getToday={() => today} createId={createId}>
+    <BudgetProvider storage={storage} getToday={options.getToday ?? (() => today)} createId={createId}>
       {ui}
     </BudgetProvider>
   );
