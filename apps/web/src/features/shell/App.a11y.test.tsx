@@ -61,11 +61,20 @@ const NO_EXPENSES: BudgetState = { ...SCENARIO, expenses: [] };
 
 function pageBanners(): HTMLElement[] {
   // A <header> inside a sectioning element is not a banner (HTML-AAM); Testing Library does not apply that rule.
-  // The library Dialog's own <header> sits in a role="dialog" container, so it is left out here: it is
-  // checked separately (the dialog is outside the page landmarks) and in a real browser by the manual axe pass.
   return Array.from(document.querySelectorAll<HTMLElement>('header')).filter(
-    (el) => el.closest('article, aside, main, nav, section, [role="dialog"]') === null,
+    (el) => el.closest('article, aside, main, nav, section') === null,
   );
+}
+
+// Every <header> is the page banner or a Card header inside a section: none in a dialog or its root.
+function expectNoDialogHeader(where: string): void {
+  const headers = Array.from(document.querySelectorAll<HTMLElement>('header'));
+  const banner = pageBanners();
+  expect(banner, `${where}: banner count`).toHaveLength(1);
+  for (const el of headers) {
+    expect(el.closest('[role="dialog"], [data-bk-dialog-root]'), `${where}: <header> inside a dialog`).toBeNull();
+    expect(el === banner[0] || el.closest('section') !== null, `${where}: stray <header>`).toBe(true);
+  }
 }
 
 function textOutsideLandmarks(): string[] {
@@ -78,7 +87,8 @@ function textOutsideLandmarks(): string[] {
     const parent = node.parentElement;
     if (text === '' || parent === null) continue;
     if (parent.closest('script, style, template, noscript') !== null) continue;
-    if (parent.closest('[role="dialog"], [data-bk-dialog-root]') !== null) continue;
+    // Text in a dialog root must be inside the dialog itself, not loose in the wrapper.
+    if (parent.closest('[role="dialog"]') !== null) continue;
     if ((header?.contains(parent) ?? false) || (main?.contains(parent) ?? false)) continue;
     stray.push(text);
   }
@@ -87,7 +97,7 @@ function textOutsideLandmarks(): string[] {
 
 function expectLandmarks(path: Path): void {
   expect(pageBanners(), `${path} banners`).toHaveLength(1);
-  expect(document.querySelectorAll('header').length).toBeGreaterThanOrEqual(1);
+  expectNoDialogHeader(path);
   const navs = screen.getAllByRole('navigation');
   expect(navs, `${path} navigations`).toHaveLength(1);
   expect(navs[0]).toHaveAccessibleName('Main');
@@ -119,6 +129,8 @@ interface AppState {
   prepare?: (view: RenderAppResult, path: Path) => Promise<void>;
   /** Only meaningful on some paths (the control exists only there). */
   paths?: readonly Path[];
+  /** One defining assertion, run on every path the state is scanned on, so the axe pass is known to cover the state. */
+  prove?: (view: RenderAppResult, path: Path) => void;
   /** Whether an open dialog is expected (its text sits outside banner and main). */
   dialog?: string;
 }
@@ -127,6 +139,15 @@ async function openAddExpense(view: RenderAppResult): Promise<HTMLElement> {
   await view.user.click(screen.getByRole('button', { name: 'Add expense' }));
   return screen.findByRole('dialog', { name: 'Add expense' });
 }
+
+const INVALID_TEXT =
+  "Your saved budget couldn't be read, so a new one was started. Your first change will replace the saved data.";
+const REPLACED_TEXT = "Your saved budget couldn't be read and has been replaced.";
+const UNAVAILABLE_TEXT =
+  "This browser isn't letting the app save, so your changes will be lost when you close the page.";
+const V1_RAW = JSON.stringify({ version: 1, state: SCENARIO });
+// The month switcher is hidden on History, so the viewed month can only be read from the header elsewhere.
+const headerHas = (text: string): HTMLElement => within(pageBanners()[0] as HTMLElement).getByText(text);
 
 const STATES: AppState[] = [
   { name: 'first run', options: {} },
@@ -177,6 +198,10 @@ const STATES: AppState[] = [
   },
   {
     name: 'past month (BOOK, October viewed)',
+    prove: (_view, path) => {
+      if (path === '/history') expect(screen.getByRole('table', { name: 'Months' })).toBeInTheDocument();
+      else expect(headerHas('October 2026')).toBeInTheDocument();
+    },
     options: { book: BOOK },
     prepare: async (view, path) => {
       view.goTo('/');
@@ -184,7 +209,14 @@ const STATES: AppState[] = [
       view.goTo(path);
     },
   },
-  { name: 'new month (BOOK, today 2026-12-02)', options: { book: BOOK, today: '2026-12-02' } },
+  {
+    name: 'new month (BOOK, today 2026-12-02)',
+    options: { book: BOOK, today: '2026-12-02' },
+    prove: (_view, path) => {
+      if (path !== '/history') expect(headerHas('December 2026')).toBeInTheDocument();
+      else expect(screen.getByText('December 2026 (this month)')).toBeInTheDocument();
+    },
+  },
   { name: 'History with BOOK', options: { book: BOOK } },
   {
     name: 'Delete all data dialog open (History only: the button exists only there)',
@@ -198,6 +230,11 @@ const STATES: AppState[] = [
   },
   {
     name: 'after deleting all data',
+    prove: (view, path) => {
+      expect(view.readStoredBook()).toEqual({ months: [] });
+      if (path === '/history') expect(screen.getByText(/^All data deleted\./)).toBeInTheDocument();
+      if (path === '/') expect(screen.getByText(/^Welcome\./)).toBeInTheDocument();
+    },
     options: { book: BOOK },
     prepare: async (view, path) => {
       view.goTo('/history');
@@ -210,21 +247,44 @@ const STATES: AppState[] = [
       view.goTo(path);
     },
   },
-  { name: 'invalid saved data, before replacement', options: { storage: createMemoryStorage({ [STORAGE_KEY]: 'not json' }) } },
+  {
+    name: 'invalid saved data, before replacement',
+    options: { storage: createMemoryStorage({ [STORAGE_KEY]: 'not json' }) },
+    prove: () => {
+      expect(screen.getByText(INVALID_TEXT)).toBeInTheDocument();
+      expect(screen.queryByText(REPLACED_TEXT)).not.toBeInTheDocument();
+    },
+  },
   {
     name: 'invalid saved data, after replacement',
     options: { storage: createMemoryStorage({ [STORAGE_KEY]: 'not json' }) },
     prepare: async (view, path) => {
       view.goTo('/plan');
       await view.user.type(screen.getByLabelText('Monthly income (USD)'), '3200');
-      expect(screen.getByText("Your saved budget couldn't be read and has been replaced.")).toBeInTheDocument();
+      expect(screen.getByText(REPLACED_TEXT)).toBeInTheDocument();
       view.goTo(path);
     },
+    prove: () => {
+      expect(screen.getByText(REPLACED_TEXT)).toBeInTheDocument();
+      expect(screen.queryByText(INVALID_TEXT)).not.toBeInTheDocument();
+    },
   },
-  { name: 'storage unavailable', options: { storage: createMemoryStorage({}, { throwOnGet: true, throwOnSet: true }) } },
+  {
+    name: 'storage unavailable',
+    options: { storage: createMemoryStorage({}, { throwOnGet: true, throwOnSet: true }) },
+    prove: () => {
+      expect(screen.getByText(UNAVAILABLE_TEXT)).toBeInTheDocument();
+    },
+  },
   {
     name: 'migrated version 1 data',
-    options: { storage: createMemoryStorage({ [STORAGE_KEY]: JSON.stringify({ version: 1, state: SCENARIO }) }) },
+    options: { storage: createMemoryStorage({ [STORAGE_KEY]: V1_RAW }) },
+    prove: (view, path) => {
+      // Loading never writes, so the raw value is still version 1; the page shows the migrated month.
+      expect(view.storage.dump()[STORAGE_KEY]).toBe(V1_RAW);
+      if (path === '/') expect(screen.getByText('Spent').closest('li')).toHaveTextContent('$1,694.82');
+      if (path === '/history') expect(screen.getByText('November 2026 (this month)')).toBeInTheDocument();
+    },
   },
 ];
 
@@ -243,6 +303,7 @@ async function showState(state: AppState, path: Path): Promise<RenderAppResult> 
   const view = renderApp({ ...freshOptions(state), path });
   await screen.findByRole('heading', { level: 1, name: H1[path] });
   if (state.prepare !== undefined) await state.prepare(view, path);
+  state.prove?.(view, path);
   return view;
 }
 
@@ -320,6 +381,30 @@ describe('landmarks on every path', () => {
       await showState(state, path);
       expectLandmarks(path);
     });
+  });
+
+  describe.each(STATES.filter((s) => s.dialog !== undefined))('$name', (state) => {
+    it.each(state.paths ?? PATHS)('%s: no <header> in the dialog, exactly one banner, dialog text only inside role=dialog', async (path) => {
+      await showState(state, path);
+      const dialog = screen.getByRole('dialog', { name: state.dialog });
+      expect(dialog.closest('main, header')).toBeNull();
+      expect(dialog.querySelector('header')).toBeNull();
+      expectNoDialogHeader(`${state.name} ${path}`);
+      expectLandmarks(path);
+    });
+  });
+
+  it('the dialog-header check can fail (a <header> inside a dialog is found)', async () => {
+    const view = renderApp({ state: SCENARIO, path: '/' });
+    const dialog = await openAddExpense(view);
+    const fake = document.createElement('header');
+    dialog.appendChild(fake);
+    expect(() => expectNoDialogHeader('mutant')).toThrow();
+    fake.remove();
+    const loose = document.createElement('p');
+    loose.textContent = 'loose in the root';
+    dialog.closest('[data-bk-dialog-root]')?.appendChild(loose);
+    expect(textOutsideLandmarks()).toEqual(['loose in the root']);
   });
 
   it.each(PATHS)('%s with a dialog open: the dialog is outside the landmarks and the page text is still inside', async (path) => {
@@ -520,6 +605,8 @@ describe('hydration on every route', () => {
     }
     globalThis.IS_REACT_ACT_ENVIRONMENT = previousActFlag;
     document.body.innerHTML = '';
+    // The console.error spy must not leak (src/test/setup.ts also restores all mocks after each test).
+    vi.restoreAllMocks();
   });
 
   function app(storage: MemoryStorage, path: Path, today = SCENARIO_TODAY): ReactElement {
@@ -559,6 +646,19 @@ describe('hydration on every route', () => {
       expect(container).not.toHaveTextContent('Loading your budget…');
       expect(container.querySelector('h1')?.textContent).toBe(H1[path]);
       expect(storage.setItemCalls).toBe(0);
+      // One saved figure per path, so the hydrated page is the real one and not an empty shell.
+      const december = today === '2026-12-02';
+      const probe: Record<Path, string> = {
+        '/': december ? '$2,270.00' : '$1,694.82',
+        '/spending': december ? 'No expenses in December 2026.' : 'Birthday dinner',
+        '/plan': 'Monthly income (USD)',
+        '/history': december ? 'December 2026 (this month)' : '$1,694.82',
+      };
+      expect(container).toHaveTextContent(probe[path]);
+      if (path === '/plan') {
+        expect(within(container).getByLabelText('Monthly income (USD)')).toHaveValue('3,200.00');
+        expect(within(container).getByLabelText('Category 5 name')).toHaveValue('Eating out');
+      }
     });
   });
 });

@@ -287,7 +287,6 @@ describe('refresh keeps everything on each of the four paths', () => {
   it.each(PATHS)('%s: every figure, row, name and planned field is unchanged after refresh()', async (path) => {
     const view = renderApp();
     await untilRemovedCategory(view);
-    // Dirty the viewed month too: refresh must come back to the current month.
     view.goTo(path);
     const before = await snapshot(path);
     expect(before).toBeTruthy();
@@ -430,6 +429,32 @@ describe('first expense with no plan is not red', () => {
     expect(document.body.querySelector('[data-tone="danger"]')).toBeNull();
     // The welcome line goes once a month is stored.
     expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();
+  });
+});
+
+describe('focus after deleting an expense and removing a category', () => {
+  it('moves to the next row, else the previous, else the empty-state paragraph; and to a neighbouring Remove, else Add category', async () => {
+    const { user } = renderApp({ state: SCENARIO, path: '/spending' });
+    const del = (name: string) => screen.getByRole('button', { name: `Delete ${name}` });
+    await user.click(del('$112.35 Eating out expense from Nov 5, 2026'));
+    expect(del('$82.47 Groceries expense from Nov 3, 2026')).toHaveFocus();
+    await user.click(del('$1,500.00 Rent expense from Nov 1, 2026'));
+    expect(del('$82.47 Groceries expense from Nov 3, 2026')).toHaveFocus();
+    await user.click(del('$82.47 Groceries expense from Nov 3, 2026'));
+    expect(screen.getByText('No expenses in November 2026.')).toHaveFocus();
+
+    await go(user, 'Plan');
+    const remove = (name: string) => screen.getByRole('button', { name: `Remove ${name}` });
+    await user.click(remove('Groceries'));
+    expect(remove('Transport')).toHaveFocus();
+    await user.click(remove('Eating out'));
+    expect(remove('Utilities')).toHaveFocus();
+    await user.click(remove('Rent'));
+    expect(remove('Transport')).toHaveFocus();
+    await user.click(remove('Transport'));
+    expect(remove('Utilities')).toHaveFocus();
+    await user.click(remove('Utilities'));
+    expect(screen.getByRole('button', { name: 'Add category' })).toHaveFocus();
   });
 });
 
@@ -709,10 +734,7 @@ describe('one dialog at a time', () => {
         await screen.findByRole('dialog', { name: 'Add expense' });
         expect(screen.getAllByRole('dialog')).toHaveLength(1);
         for (const name of names) {
-          const el = screen.getByRole(name.startsWith('link:') ? 'link' : 'button', {
-            name: name.replace('link:', ''),
-            hidden: true,
-          });
+          const el = screen.getByRole('button', { name, hidden: true });
           expect(el.closest('[inert]'), name).not.toBeNull();
         }
         for (const n of ['Overview', 'Spending', 'Plan', 'History']) {
