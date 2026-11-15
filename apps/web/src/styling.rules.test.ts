@@ -41,7 +41,7 @@ describe('the scan sees the app', () => {
       'features/dashboard/Dashboard.tsx',
       'features/expenses/AddExpense.tsx',
       'features/expenses/ExpenseList.tsx',
-      'features/setup/MonthSetup.tsx',
+      'features/plan/CategoriesCard.tsx',
       'state/BudgetProvider.tsx',
       'app/layout.tsx',
     ]) {
@@ -72,7 +72,7 @@ describe('every MoneyField has a label ending in (USD)', () => {
     renderApp({ state: SCENARIO, path: '/plan' });
     const boxes = screen.getAllByRole('textbox');
     const money = boxes.filter((b) => b.getAttribute('inputmode') === 'decimal');
-    expect(money.length).toBe(1 + SCENARIO.categories.length + 1);
+    expect(money.length).toBe(1 + SCENARIO.categories.length);
     for (const box of money) expect(box).toHaveAccessibleName(/ \(USD\)$/);
     for (const box of boxes.filter((b) => !money.includes(b))) {
       expect(box.getAttribute('aria-label') ?? (box as HTMLInputElement).labels?.[0]?.textContent ?? '').not.toMatch(/USD/);
@@ -84,7 +84,6 @@ describe('every MoneyField has a label ending in (USD)', () => {
       'Category 3 planned (USD)',
       'Category 4 planned (USD)',
       'Category 5 planned (USD)',
-      'New category planned (USD)',
     ]);
   });
 });
