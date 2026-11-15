@@ -51,6 +51,7 @@
   color: var(--bk-color-text);
   font-size: var(--bk-font-size-md);
   overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .body:focus-visible {
