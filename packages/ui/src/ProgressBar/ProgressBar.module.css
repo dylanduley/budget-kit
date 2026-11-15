@@ -17,10 +17,14 @@
 .label {
   color: var(--bk-color-text);
   font-weight: var(--bk-font-weight-medium);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .status {
   color: var(--bk-color-text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .root[data-tone='warning'] .status {
