@@ -53,6 +53,7 @@ const MUST_WRAP: Array<[file: string, selectors: string[]]> = [
   ['Card/Card.module.css', ['.title', '.description', '.body']],
   ['Dialog/Dialog.module.css', ['.title', '.body']],
   ['Field/Field.module.css', ['.label', '.hint', '.error']],
+  ['NavBar/NavBar.module.css', ['.link']],
   ['ProgressBar/ProgressBar.module.css', ['.label', '.status']],
   ['Stat/Stat.module.css', ['.stat']],
   ['TextField/TextField.module.css', ['.prefix']],

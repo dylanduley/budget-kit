@@ -42,4 +42,7 @@ export const contrastPairs: ContrastPair[] = [
   { text: '--bk-color-success', background: '--bk-color-surface-subtle', min: 3 },
   { text: '--bk-color-warning', background: '--bk-color-surface-subtle', min: 3 },
   { text: '--bk-color-danger', background: '--bk-color-surface-subtle', min: 3 },
+  // Current NavBar link's 2px bottom border: against its own background and the page behind it.
+  { text: '--bk-color-primary', background: '--bk-color-primary-subtle', min: 3 },
+  { text: '--bk-color-primary', background: '--bk-color-bg', min: 3 },
 ];

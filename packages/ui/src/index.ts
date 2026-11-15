@@ -9,3 +9,4 @@ export { Stat, type StatProps, type StatTone } from './Stat/Stat';
 export { ProgressBar, type ProgressBarProps, type ProgressBarTone } from './ProgressBar/ProgressBar';
 export { Dialog, type DialogProps } from './Dialog/Dialog';
 export { Table, type TableColumn, type TableProps } from './Table/Table';
+export { NavBar, type NavBarItem, type NavBarLinkProps, type NavBarProps } from './NavBar/NavBar';
