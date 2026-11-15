@@ -3,7 +3,14 @@
 A design system and a budget planning app, built by an **AI agent team** that I set up and led.
 
 - **Component library** (`packages/ui`): 10 accessible React components, documented in Storybook. → _Storybook link_
-- **Budget planner** (`apps/web`): a Next.js app built only from those components. → _App link_
+- **Budget planner** (`apps/web`): a Next.js app built only from those components. It plans one month at a time: income, planned spending per category, expenses, and a notice when the saved budget is for an earlier month. Data is saved in the browser's `localStorage`. → _App link_
+
+## Structure
+
+- `packages/ui`: the component library. One folder per component in `src/<Name>/`, design tokens in `src/tokens.css`.
+- `apps/web`: the budget planner. `src/lib` (budget math and formatting), `src/state` (storage and app state), `src/features` (screens), `src/app` (Next.js routes).
+- `docs/`: specs, task files, `workflow.md` and `build-log.md`.
+- `.claude/agents/`: the agent definitions.
 
 ## The agent team
 
@@ -39,4 +46,6 @@ npm install
 npm run storybook   # component library at localhost:6006
 npm run dev         # app at localhost:3000
 npm run check       # typecheck, lint, tests
+npm run test:a11y   # accessibility checks for every library story
+npm run build       # builds Storybook and the app
 ```
