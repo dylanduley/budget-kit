@@ -1,0 +1,206 @@
+# 02: Persistence and app state
+
+Versioned, validated `localStorage` storage; a reducer over the task 01 functions; a `BudgetProvider` that loads after mount (no hydration mismatch, no flash of default content) and saves after every user action; the app skeleton in `page.tsx`; and the shared test set-up every later task uses.
+
+**Depends on**: 01
+
+**Parallel group**: 1 (runs alone)
+
+## Conventions (identical in every app task)
+- **Folders** (all under `apps/web/src/`): `lib/` pure TypeScript (no React, no `window`, no `Date.now()`); `state/` storage and the React provider; `features/<area>/` screen components; `test/` shared test helpers; `app/` Next.js route files only (`layout.tsx`, `page.tsx`, `globals.css`).
+- **Imports**: library components and helpers only from `@budget-kit/ui` (lint blocks `@budget-kit/ui/src/*`); app modules through the `@/` alias (`@/lib/budget`).
+- **Client boundary**: a file starts with `'use client';` only if it uses state, effects, refs, context or event handlers. `page.tsx` and `layout.tsx` stay server components. `lib/*`, `state/storage.ts` and `state/budgetReducer.ts` have no directive.
+- **Styling**: no CSS files (other than the existing `app/globals.css`, unchanged), no `style` prop, no CSS Modules, and no native `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>` or `<dialog>` anywhere in `apps/web/src`. Tailwind classes only for layout and spacing on plain elements (`flex*`, `grid*`, `gap-*`, `p*-*`, `m*-*`, `max-w-*`, `w-full`, `items-*`, `justify-*`, `list-none`, and `sm:` variants of these), plus typography and token text colours (`text-2xl`, `font-semibold`, `text-text`, `text-text-muted`) on plain text elements (`h1`, `h3`, `p`). On library components `className` may contain only `w-full`, `self-*`, `justify-self-*`, `col-span-*`. Single column below 640px: any multi-column layout is behind `sm:`.
+- **Structure**: plain semantic elements only (`main`, `section`, `h1`, `h3`, `p`, `ul`, `li`, `form`).
+- **Money**: integer cents in state, storage, props and function arguments. Converted to text only at the display edge with `formatMoney` from `@/lib/format` (which wraps the library's `formatCents`). No `parseFloat`, `toFixed`, `Number(` on text, `* 100` or `/ 100` on amounts. Amounts shown are exactly the numbers the `lib/budget.ts` functions return.
+- **Dates**: ISO strings (`YYYY-MM-DD`, months `YYYY-MM`), compared as strings. Never parse them with `new Date(string)` (time-zone shifts). "Today" comes only from `useBudget().today` (task 02).
+- **Copy**: English, sentence case; strings quoted in a task are exact.
+- **Tests**: written by QA from the acceptance criteria, colocated as `<file>.test.ts(x)`; the builder does not write them. Tests import `describe`, `it`, `expect`, `vi` from `vitest` (no globals), use Testing Library and `@testing-library/user-event`, and render screens with the helpers in `src/test/` (task 02). jsdom has no layout, so visual behaviour goes under **Manual browser checks**, never into a test that cannot fail.
+- **Done**: every acceptance criterion passes and `npm run check` passes.
+
+## Files
+- `apps/web/src/lib/clock.ts` (no directive): `todayIso`
+- `apps/web/src/state/storage.ts` (no directive)
+- `apps/web/src/state/budgetReducer.ts` (no directive)
+- `apps/web/src/state/BudgetProvider.tsx` (`'use client';`): `BudgetProvider`, `useBudget`
+- `apps/web/src/features/BudgetApp.tsx` (`'use client';`): the skeleton below
+- `apps/web/src/app/page.tsx`: replace the placeholder with `<BudgetProvider><BudgetApp /></BudgetProvider>` (stays a server component)
+- Test infrastructure (builder writes these; they are not product code):
+  - `apps/web/vitest.config.ts`: add `setupFiles: ['./src/test/setup.ts']`; nothing else changes
+  - `apps/web/src/test/setup.ts`: `import '@testing-library/jest-dom/vitest'`; `afterEach`: RTL `cleanup()`, `window.localStorage.clear()`, `vi.restoreAllMocks()`
+  - `apps/web/src/test/memoryStorage.ts`, `renderWithBudget.tsx`, `axe.ts`, `fixtures.ts` (below)
+  - `apps/web/package.json`: add devDependencies `"@testing-library/user-event": "^14.6.10"` and `"axe-core": "^4.14.0"` (same versions already installed for `packages/ui`) and update `package-lock.json` with `npm install -D -w @budget-kit/web …`. **Approved by the lead.**
+- QA: `storage.test.ts`, `budgetReducer.test.ts`, `BudgetProvider.test.tsx`, `clock.test.ts`, `src/features/BudgetApp.hydration.test.tsx`
+
+## API / Props
+```ts
+// lib/clock.ts
+export function todayIso(now?: Date): string;   // local calendar date of `now` (default new Date()), 'YYYY-MM-DD'
+
+// state/storage.ts
+export const STORAGE_KEY = 'budget-kit:budget';
+export const STORAGE_VERSION = 1;
+export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+export type LoadResult =
+  | { status: 'empty' }
+  | { status: 'loaded'; state: BudgetState }
+  | { status: 'invalid'; reason: 'corrupt' | 'unsupported-version' }
+  | { status: 'unavailable' };
+export function isBudgetState(value: unknown): value is BudgetState;
+export function parseStoredBudget(raw: string | null): LoadResult;      // pure; never 'unavailable'
+export function serializeBudget(state: BudgetState): string;            // JSON of { version: 1, state }
+export function loadBudget(storage: StorageLike | null): LoadResult;    // never throws
+export function saveBudget(storage: StorageLike | null, state: BudgetState): boolean; // never throws
+
+// state/budgetReducer.ts
+export type BudgetAction =
+  | { type: 'setIncome'; incomeCents: number }
+  | { type: 'addCategory'; input: NewCategory; id: string }
+  | { type: 'updateCategory'; id: string; patch: CategoryPatch }
+  | { type: 'removeCategory'; id: string }
+  | { type: 'addExpense'; input: NewExpense; id: string }
+  | { type: 'deleteExpense'; id: string }
+  | { type: 'reset'; month: string };
+export function budgetReducer(state: BudgetState, action: BudgetAction): BudgetState;
+
+// state/BudgetProvider.tsx
+export interface BudgetActions {
+  setIncome(incomeCents: number): void;
+  addCategory(input: NewCategory): string;              // returns the new id
+  updateCategory(id: string, patch: CategoryPatch): void;
+  removeCategory(id: string): void;
+  addExpense(input: NewExpense): string;                // returns the new id
+  deleteExpense(id: string): void;
+  resetMonth(): void;
+}
+export type BudgetContextValue =
+  | { status: 'loading' }
+  | {
+      status: 'ready';
+      state: BudgetState;
+      today: string;                                     // 'YYYY-MM-DD', read once at load
+      currentMonth: string;                              // monthOf(today)
+      isOtherMonth: boolean;                             // state.month !== currentMonth
+      generation: number;                                // 0 after load, +1 on every resetMonth
+      loadStatus: LoadResult['status'];
+      actions: BudgetActions;
+    };
+export interface BudgetProviderProps {
+  children: ReactNode;
+  storage?: StorageLike | null;   // undefined: window.localStorage (looked up in the load effect); null: memory only
+  getToday?: () => string;        // default () => todayIso()
+  createId?: () => string;        // default () => crypto.randomUUID()
+}
+export function BudgetProvider(props: BudgetProviderProps): ReactElement;
+export function useBudget(): BudgetContextValue;       // throws Error outside a provider
+```
+
+### Test helpers (`src/test/`)
+```ts
+// memoryStorage.ts
+export function createMemoryStorage(
+  initial?: Record<string, string>,
+  options?: { throwOnGet?: boolean; throwOnSet?: boolean },
+): StorageLike & { dump(): Record<string, string>; setItemCalls: number };
+
+// renderWithBudget.tsx
+export interface RenderWithBudgetOptions {
+  storage?: StorageLike & Partial<{ dump(): Record<string, string> }>; // default: a new memory storage
+  state?: BudgetState;            // seeds storage with serializeBudget(state) before rendering
+  today?: string;                 // default '2026-11-14'
+}
+export function renderWithBudget(ui: ReactElement, options?: RenderWithBudgetOptions): RenderResult & {
+  user: UserEvent;                // userEvent.setup()
+  storage: StorageLike;
+  refresh(): RenderResult;        // unmount, then render the same ui with the same storage and today: a page refresh
+  readStored(): BudgetState | null; // parseStoredBudget(storage.getItem(STORAGE_KEY)) state, or null
+};
+// ids from createId are 'id-1', 'id-2', … (a fresh counter per render). renderWithBudget awaits nothing;
+// tests use findBy* to wait for the ready state.
+
+// axe.ts
+export async function expectNoAxeViolations(root?: Element): Promise<void>;
+// runs axe-core on root (default document.body) with only 'color-contrast' disabled (jsdom has no layout);
+// fails listing { id, help, nodes[].html } for every violation.
+
+// fixtures.ts
+export const SCENARIO: BudgetState;            // state S from task 01, exactly
+export const SCENARIO_TODAY = '2026-11-14';
+```
+
+## Behaviour
+### Storage
+- Stored value under `STORAGE_KEY`: `JSON.stringify({ version: 1, state })`.
+- `parseStoredBudget`: `null` → `empty`. Unparseable JSON, a non-object, or a missing/non-integer `version` → `invalid/corrupt`. An integer `version` other than 1 → `invalid/unsupported-version`. Version 1 whose `state` fails `isBudgetState` → `invalid/corrupt`. Otherwise `loaded` with a fresh copy of the state that has **only** the known fields (unknown extra fields anywhere are dropped).
+- `isBudgetState` requires: `month` passes `isIsoMonth`; `incomeCents` a safe integer in `0..MAX_CENTS`; `categories` an array of `{ id: non-empty string, name: string, plannedCents: integer 0..MAX_CENTS }` with unique ids; `expenses` an array of `{ id: non-empty string, categoryId: string, amountCents: integer 1..MAX_CENTS, note: string, date: isIsoDate }` with unique ids. An expense's `categoryId` need not exist (removed categories). Floats (`1250.5`), strings (`"1250"`), negatives and `null` fail.
+- `loadBudget` / `saveBudget` catch every exception (e.g. `SecurityError`, `QuotaExceededError`): load returns `unavailable`, save returns `false`. `null` storage: load returns `unavailable`, save returns `false`.
+
+### Provider
+- Server render and the first client render produce `{ status: 'loading' }`. Nothing reads storage, the clock or `crypto` during render.
+- One `useEffect` after mount: resolves storage (`props.storage`, or `window.localStorage` inside a `try`, `null` if that throws), calls `getToday()` once, `loadBudget`. `loaded` → that state; anything else → `createInitialState(monthOf(today))`. Then `status: 'ready'`, `generation: 0`.
+- **Loading never writes.** Storage is written only after a user action: each action dispatches to `budgetReducer` and the new state is saved with `saveBudget` (in an effect or right after dispatch). Corrupt, unsupported or empty data is therefore left untouched until the first change, which overwrites it.
+- **No automatic rollover** (lead decision): a loaded budget keeps its stored `month` even when `today` is in another month; nothing is changed or deleted on load. The provider only exposes `currentMonth` and `isOtherMonth` so the page can show the rollover notice (task 07) and the user decides.
+- `resetMonth` dispatches `{ type: 'reset', month: monthOf(today) }` (the reducer returns `createInitialState(month)`), increments `generation`, and saves.
+- Actions that throw (task 01 validation) propagate; screens validate before calling.
+- A failed save is ignored: the app keeps working in memory.
+- `actions` is stable across renders (`useMemo`/`useCallback`), so screens can list it in effect dependencies.
+
+### Skeleton (`features/BudgetApp.tsx`)
+- Loading: `<main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6" aria-busy="true">` containing `<h1>Budget Kit</h1>` and `<p>Loading your budget…</p>`.
+- Ready: the same `<main>` without `aria-busy`, containing a `<div>` with the `<h1>Budget Kit</h1>` and `<p>Budget for {formatMonth(state.month)}</p>`. Later tasks add one line each below it, in the order given in the README; this task adds no screen.
+- The `h1` uses `text-2xl font-semibold text-text`; the month line `text-text-muted`.
+
+## Screens / states
+Loading; ready (heading and month only).
+
+## Acceptance criteria
+Storage (unit, no React):
+- [ ] `serializeBudget(SCENARIO)` then `parseStoredBudget` returns `{ status: 'loaded', state }` with `state` `toEqual` `SCENARIO`.
+- [ ] `parseStoredBudget` returns `empty` for `null`; `invalid/corrupt` for `'not json'`, `'null'`, `'[]'`, `'{}'`, `'{"version":"1","state":…}'`, and for version 1 with each of: `incomeCents: 1250.5`, `incomeCents: "1250"`, `incomeCents: -1`, a category `plannedCents: null`, an expense `amountCents: 0`, an expense `date: '2026-11-31'`, `month: '2026-13'`, two categories with the same id, `expenses` missing; `invalid/unsupported-version` for `version: 2` and `version: 0`.
+- [ ] A stored state with an extra field (`state.theme`, and `categories[0].colour`) loads, and the loaded state has no such keys.
+- [ ] An expense whose `categoryId` matches no category loads.
+- [ ] `loadBudget` with `createMemoryStorage({}, { throwOnGet: true })` returns `unavailable`; `saveBudget` with `throwOnSet` returns `false`; neither throws; both return the same with `null`.
+
+Reducer:
+- [ ] Each action type returns what the matching task 01 function returns (`toEqual`) for `SCENARIO`; `reset` with `'2026-12'` returns `createInitialState('2026-12')`; the input state is not mutated (deep-frozen input does not throw).
+
+Provider:
+- [ ] Outside a provider, `useBudget()` throws an `Error`.
+- [ ] Loads saved data: with storage seeded with `SCENARIO`, a probe component shows `ready`, `loadStatus` `loaded`, and `state` equal to `SCENARIO`.
+- [ ] Empty storage: state equals `createInitialState('2026-11')` when `getToday` returns `'2026-11-14'`; `loadStatus` is `empty`.
+- [ ] Missing, corrupt or old data: for each of storage values `'not json'`, `{"version":2,…}` and a version-1 value with `incomeCents: "1250"`, the state equals `createInitialState('2026-11')`, `loadStatus` is `invalid`, and the stored string is byte-identical after load.
+- [ ] Loading never writes: with storage seeded with `SCENARIO`, after the ready state is shown `setItemCalls` is `0`.
+- [ ] Saves after each action: after `setIncome(500)`, `readStored().incomeCents` is `500`; after `addExpense` (Groceries, `8247`, `'2026-11-03'`), the stored state contains that expense with id `'id-1'`.
+- [ ] Survives a refresh: perform `setIncome(320000)` and `addCategory({ name: 'Pets', plannedCents: 2500 })`, call `refresh()`; the reloaded state equals the state before the refresh.
+- [ ] `resetMonth` with `getToday` returning `'2026-12-02'` and a `SCENARIO`-seeded storage gives state `createInitialState('2026-12')`, `generation` `1`, and the stored state equals it.
+- [ ] No silent rollover: with storage seeded with `SCENARIO` (month `2026-11`) and `getToday` returning `'2026-12-02'`, the state equals `SCENARIO`, `currentMonth` is `'2026-12'`, `isOtherMonth` is `true`, and `setItemCalls` is `0`. With `'2026-11-30'`, `isOtherMonth` is `false`. With `'2026-10-15'` (clock moved back), `isOtherMonth` is `true` and the state is still `SCENARIO`.
+- [ ] Storage unavailable: with `throwOnGet` and `throwOnSet`, the provider reaches `ready` with the initial state, `loadStatus` `unavailable`, and `setIncome(500)` still updates the in-memory state to `500` with no error thrown or logged.
+- [ ] `getToday` and `createId` are never called during render: `renderToString` of the provider with spies for both calls each `0` times; after a client mount `getToday` has been called exactly once.
+
+Hydration (`BudgetApp.hydration.test.tsx`):
+- [ ] `renderToString(<BudgetProvider storage={seeded with SCENARIO}><BudgetApp /></BudgetProvider>)` contains `Loading your budget…` and `Budget Kit`, and does not contain `November 2026`.
+- [ ] Putting that HTML in a container and calling `hydrateRoot` (inside `act`) with an `onRecoverableError` spy: the spy is never called, `console.error` is never called, and afterwards the container shows `Budget for November 2026`.
+- [ ] The loading `main` has `aria-busy="true"`; the ready `main` has no `aria-busy`; both have exactly one `h1`, `Budget Kit`.
+
+Blanket:
+- [ ] `page.tsx` and `layout.tsx` have no `'use client'`; `BudgetProvider.tsx` and `BudgetApp.tsx` start with it; `storage.ts`, `budgetReducer.ts` and `clock.ts` do not import `react`.
+- [ ] `expectNoAxeViolations` passes on the ready skeleton, and fails (QA proves it once) on a test-only fragment containing an `<img>` without `alt`.
+- [ ] No `any`, `@ts-ignore` or `@ts-expect-error` in non-test files; styling rules in Conventions hold (grep).
+- [ ] `npm run check` passes, including the app's tests.
+
+## Manual browser checks
+- `npm run dev`, open localhost:3000 with a saved budget: no visible flash of the default (empty) state before the saved month appears; no hydration warning in the console.
+- DevTools → Application → Local Storage: `budget-kit:budget` is created only after the first change.
+- Set the stored value to `garbage` and reload: the app starts fresh and works; the garbage is replaced after the first change.
+
+## Assumptions
+- One storage key; version 1 is the first version, so "old version" means any other version, which is discarded (no migrations yet).
+- Invalid or unsupported data is not loaded; the page tells the user (`loadStatus: 'invalid'`, notice in task 08) and the raw value stays in storage until the first change.
+- No cross-tab sync (`storage` events): two open tabs overwrite each other.
+- `today` is read once per page load; the app does not react to midnight passing (a month change shows up on the next load).
+- `crypto.randomUUID` exists in supported browsers and in jsdom; tests inject `createId` anyway.
+- The builder sets up test infrastructure (setup file, helpers, two dev dependencies); QA writes the tests.
+
+## Out of scope
+- Any screen (tasks 03–07), the rollover and saved-data notices (07, 08), migrations, multi-month history, export/import.
+- Changing `layout.tsx`, `globals.css`, the root `package.json` or lint config.
