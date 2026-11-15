@@ -85,7 +85,7 @@ export function Dashboard(): ReactElement | null {
                         formatValue={formatMoney}
                       />
                       {summary.isOverBudget ? (
-                        <Badge variant="danger">Over budget</Badge>
+                        <Badge variant="danger" className="self-start">Over budget</Badge>
                       ) : (
                         <p>{formatMoney(summary.remainingCents)} left</p>
                       )}
@@ -93,7 +93,7 @@ export function Dashboard(): ReactElement | null {
                   ) : (
                     <>
                       <p>{label}</p>
-                      <Badge variant="neutral">No plan set</Badge>
+                      <Badge variant="neutral" className="self-start">No plan set</Badge>
                       <p>Spent {formatMoney(summary.spentCents)}</p>
                     </>
                   )}
