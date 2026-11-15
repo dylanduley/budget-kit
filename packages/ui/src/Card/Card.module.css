@@ -41,6 +41,7 @@
 /* Padding keeps a focus ring on the action's controls from being clipped by an ancestor. */
 .action {
   flex: 0 0 auto;
+  box-sizing: border-box;
   max-width: 100%;
   padding: var(--bk-space-1);
   margin: calc(-1 * var(--bk-space-1));
