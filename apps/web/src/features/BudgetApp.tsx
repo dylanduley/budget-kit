@@ -3,6 +3,7 @@
 import type { ReactElement } from 'react';
 
 import { formatMonth } from '@/lib/budget';
+import { MonthSetup } from '@/features/setup/MonthSetup';
 import { useBudget } from '@/state/BudgetProvider';
 
 const MAIN_CLASS = 'mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6';
@@ -25,6 +26,7 @@ export function BudgetApp(): ReactElement {
         <h1 className="text-2xl font-semibold text-text">Budget Kit</h1>
         <p className="text-text-muted">Budget for {formatMonth(budget.state.month)}</p>
       </div>
+      <MonthSetup key={budget.generation} />
     </main>
   );
 }
