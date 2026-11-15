@@ -118,9 +118,9 @@ describe('shell structure on every route', () => {
     for (const inner of document.querySelectorAll('main header')) expect(inner.closest('section')).not.toBeNull();
   });
 
-  it('History shows its current placeholder line', () => {
+  it('History shows the Start over card', () => {
     renderApp({ state: SCENARIO, path: '/history' });
-    expect(screen.getByText('Your months will be listed here.')).toBeInTheDocument();
+    expect(screen.getByText('Start over')).toBeInTheDocument();
   });
 
   it('Plan shows the income field of the temporary setup form', () => {
