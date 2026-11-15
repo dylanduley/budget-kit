@@ -123,7 +123,7 @@ describe('shell structure on every route', () => {
     expect(screen.getByText('Your months will be listed here.')).toBeInTheDocument();
   });
 
-  it('Plan shows the income field of the temporary setup form', () => {
+  it('Plan shows the Monthly income (USD) field', () => {
     renderApp({ state: SCENARIO, path: '/plan' });
     expect(screen.getByRole('textbox', { name: 'Monthly income (USD)' })).toBeInTheDocument();
   });
