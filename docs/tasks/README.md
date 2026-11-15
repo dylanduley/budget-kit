@@ -20,6 +20,14 @@ Plan for `docs/specs/components.md`. One file per task; each is self-contained f
 
 All paths are under `packages/ui/`. Every component task also creates its own folder `src/<Name>/`, which no other task writes to.
 
+### Follow-ups (planned, not built)
+See [followups-plan.md](followups-plan.md) for order, planner defaults and risks.
+
+| # | Task | Depends on | Group | Shared files touched |
+|---|---|---|---|---|
+| 14 | [MoneyField reports the parse state](14-money-field-parse-state.md) | none | F1 | none (own folder only) |
+| 15 | [StatusMessage](15-status-message.md) | none | F1 | `src/index.ts` (adds `export { StatusMessage, type StatusMessageProps } from './StatusMessage/StatusMessage';` after the `Table` line), `src/text-wrapping.test.ts` (one `MUST_WRAP` entry) |
+
 ### What task 00 covers
 The scaffold already satisfies most of spec item 0: every colour family with a text-safe shade, spacing, radii, font sizes, shadows, a contrast test over `tokens.pairs.ts`, and a story listing the pairs. What remains is small: nine pairs the planned components use that are not listed yet (status text on the page background, the invalid-field outline, ProgressBar fills, the secondary Button hover border), and a scrim token for Dialog. All nine already pass with today's values, so no colour changes.
 
