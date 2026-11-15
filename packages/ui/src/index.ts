@@ -2,6 +2,7 @@ export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from '.
 export { TextField, type TextFieldProps } from './TextField/TextField';
 export { MoneyField, type MoneyFieldProps } from './MoneyField/MoneyField';
 export { formatCents, parseMoney, type MoneyParseResult } from './MoneyField/money';
+export { Select, type SelectOption, type SelectProps } from './Select/Select';
 export { Badge, type BadgeProps, type BadgeVariant } from './Badge/Badge';
 export { Card, type CardProps } from './Card/Card';
 export { Stat, type StatProps, type StatTone } from './Stat/Stat';

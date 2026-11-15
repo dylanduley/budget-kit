@@ -1,0 +1,54 @@
+.box {
+  position: relative;
+  display: flex;
+  color: var(--bk-color-text);
+}
+
+/* Chevron drawn from two borders so it follows currentColor and adds no DOM text. */
+.box::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: var(--bk-space-4);
+  width: var(--bk-space-2);
+  height: var(--bk-space-2);
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-75%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select {
+  flex: 1;
+  min-width: 0;
+  box-sizing: content-box;
+  min-height: var(--bk-space-10);
+  margin: 0;
+  padding: 0 var(--bk-space-10) 0 var(--bk-space-3);
+  appearance: none;
+  background: var(--bk-color-surface);
+  border: 1px solid var(--bk-color-border-strong);
+  border-radius: var(--bk-radius-md);
+  color: var(--bk-color-text);
+  font-family: inherit;
+  font-size: var(--bk-font-size-md);
+  text-overflow: ellipsis;
+}
+
+[data-invalid='true'] .select {
+  border-color: var(--bk-color-danger);
+}
+
+.select:focus-visible {
+  box-shadow: var(--bk-focus-ring);
+  outline: 2px solid transparent;
+}
+
+.select:disabled {
+  background: var(--bk-color-surface-subtle);
+  color: var(--bk-color-text-muted);
+}
+
+.box:has(.select:disabled) {
+  color: var(--bk-color-text-muted);
+}
