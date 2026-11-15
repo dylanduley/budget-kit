@@ -108,12 +108,21 @@ describe('alerts and live regions', () => {
     expect(found).toBeGreaterThanOrEqual(4);
   });
 
-  it('there is no role="status" and no aria-live', () => {
+  it('there is no role="status" and exactly one aria-live (the month label)', () => {
+    const liveMatches: string[] = [];
     for (const file of codeFiles) {
       const code = stripComments(read(file));
       expect(code, rel(file)).not.toMatch(/role\s*[=:]\s*\{?\s*['"]status['"]/);
-      expect(code, rel(file)).not.toMatch(/aria-live|ariaLive/);
+      for (const match of code.matchAll(/aria-live|ariaLive/g)) {
+        const at = match.index ?? 0;
+        const tagStart = code.lastIndexOf('<', at);
+        const tag = code.slice(tagStart, code.indexOf('>', at));
+        liveMatches.push(rel(file));
+        expect(tag.startsWith('<p\n') || tag.startsWith('<p '), `${rel(file)} must be on a <p>`).toBe(true);
+        expect(tag, rel(file)).toMatch(/aria-live="polite"/);
+      }
     }
+    expect(liveMatches).toEqual(['features/month/MonthSwitcher.tsx']);
   });
 });
 
