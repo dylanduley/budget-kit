@@ -460,19 +460,21 @@ describe("Delete all data: confirming", () => {
       screen.getByText(/^Welcome\. Start on the Plan page/),
     ).toBeInTheDocument();
     goTo("/plan");
-    // The first-run suggestions arrive with task 23; here Plan must be the empty first-run form.
     expect(
       screen.getByRole("textbox", { name: "Monthly income (USD)" }),
     ).toHaveValue("");
+    expect(screen.queryByRole("textbox", { name: /^Category \d+ name$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Rent" })).toBeInTheDocument();
     refresh();
     expect(readStoredBook()).toEqual({ months: [] });
     expect(
       screen.getByRole("heading", { level: 1, name: "Plan" }),
     ).toBeInTheDocument();
-    // The first-run suggestions arrive with task 23; here Plan must be the empty first-run form.
     expect(
       screen.getByRole("textbox", { name: "Monthly income (USD)" }),
     ).toHaveValue("");
+    expect(screen.queryByRole("textbox", { name: /^Category \d+ name$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Rent" })).toBeInTheDocument();
   });
 
   it("after refresh() History still shows the single empty row", async () => {

@@ -30,25 +30,49 @@ function lineOf(code: string, index: number): number {
 }
 
 describe('the scan sees the app', () => {
-  it('finds the screens, the shell and the state files', () => {
+  // Every shell, page and screen file. A new file under features/ must be added here on purpose, so it is scanned knowingly.
+  const EXPECTED_FEATURE_FILES = [
+    'features/dashboard/Dashboard.tsx',
+    'features/expenses/AddExpense.tsx',
+    'features/expenses/ExpenseList.tsx',
+    'features/expenses/expenseForm.ts',
+    'features/history/DeleteAllData.tsx',
+    'features/history/HistoryPage.tsx',
+    'features/history/MonthsTable.tsx',
+    'features/month/MonthSwitcher.tsx',
+    'features/overview/OverviewPage.tsx',
+    'features/plan/AddCategoryDialog.tsx',
+    'features/plan/CategoriesCard.tsx',
+    'features/plan/CategoryRow.tsx',
+    'features/plan/IncomeCard.tsx',
+    'features/plan/PlanPage.tsx',
+    'features/plan/Suggestions.tsx',
+    'features/plan/actionMessage.ts',
+    'features/shell/AppShell.tsx',
+    'features/shell/navItems.ts',
+    'features/spending/SpendingPage.tsx',
+  ];
+
+  it('names every shell, page and screen file under features/ (and nothing else is hiding there)', () => {
+    expect(featureFiles.map(rel).sort()).toEqual([...EXPECTED_FEATURE_FILES].sort());
+  });
+
+  it('finds the six features/plan component files, the four pages, the shell, the state and the layout', () => {
     const names = codeFiles.map(rel);
     for (const expected of [
-      'features/shell/AppShell.tsx',
-      'features/overview/OverviewPage.tsx',
-      'features/spending/SpendingPage.tsx',
-      'features/plan/PlanPage.tsx',
-      'features/history/HistoryPage.tsx',
-      'features/history/MonthsTable.tsx',
-      'features/history/DeleteAllData.tsx',
-      'features/dashboard/Dashboard.tsx',
-      'features/expenses/AddExpense.tsx',
-      'features/expenses/ExpenseList.tsx',
-      'features/plan/CategoriesCard.tsx',
+      ...EXPECTED_FEATURE_FILES,
       'state/BudgetProvider.tsx',
+      'state/storage.ts',
+      'state/budgetReducer.ts',
       'app/layout.tsx',
+      'app/page.tsx',
+      'app/spending/page.tsx',
+      'app/plan/page.tsx',
+      'app/history/page.tsx',
     ]) {
       expect(names).toContain(expected);
     }
+    expect(names.filter((n) => n.startsWith('features/plan/') && n.endsWith('.tsx'))).toHaveLength(6);
     expect(names.some((n) => n.endsWith('.test.tsx'))).toBe(false);
   });
 });
@@ -67,7 +91,8 @@ describe('every MoneyField has a label ending in (USD)', () => {
         expect(tag, `${rel(file)}:${lineOf(code, start)}`).toMatch(/\blabel=(?:"[^"]* \(USD\)"|\{`[^`]* \(USD\)`\})/);
       }
     }
-    expect(found).toBeGreaterThanOrEqual(4);
+    // IncomeCard, CategoryRow, AddCategoryDialog, AddExpense (counted with grep over non-test .tsx files).
+    expect(found).toBe(4);
   });
 
   it('populated state: every money textbox is named "... (USD)" and the others are name/note fields', () => {
@@ -106,7 +131,8 @@ describe('alerts and live regions', () => {
         expect(tag, where).toMatch(/data-part="action-error"/);
       }
     }
-    expect(found).toBeGreaterThanOrEqual(4);
+    // Suggestions, CategoryRow, AddCategoryDialog, ExpenseList, AddExpense, DeleteAllData (grep over non-test .tsx files).
+    expect(found).toBe(6);
   });
 
   it('there is no role="status" and exactly one aria-live (the month label)', () => {
@@ -163,8 +189,9 @@ describe('every action call is in a try whose catch shows a message', () => {
         expect(enclosing?.catchBody ?? '', `${where}: catch shows no message`).toMatch(/\bset[A-Z]\w*\(|\breturn\b/);
       }
     }
-    // setIncome, updateCategory x2, removeCategory, addCategory, addExpense, deleteExpense.
-    expect(calls).toBeGreaterThanOrEqual(7);
+    // setIncome, updateCategory x2, addCategory x2 (Suggestions, AddCategoryDialog), removeCategory, addExpense,
+    // deleteExpense, deleteAllData: 9 call sites found by grep 'actions\.[A-Za-z]*(' over features/**/*.tsx.
+    expect(calls).toBe(9);
   });
 
   it('actions are never destructured or aliased (which would hide a call from the check)', () => {
@@ -267,7 +294,8 @@ describe('className values', () => {
       }
       expect(code, rel(file)).not.toMatch(/\bclass=|\bclassName\s*=\s*\{\s*`|\bclsx\(|\bcx\(/);
     }
-    expect(seen).toBeGreaterThan(15);
+    // 32 `className=` attributes counted by grep over the non-test .tsx files.
+    expect(seen).toBe(32);
   });
 
   it('the className classifier rejects what the conventions forbid', () => {
