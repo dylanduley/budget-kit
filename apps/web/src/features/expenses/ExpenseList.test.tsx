@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { BudgetApp } from '@/features/BudgetApp';
+import { renderApp } from '@/test/renderApp';
 import {
   type BudgetState,
   type Expense,
@@ -38,10 +38,15 @@ function rowText(row: HTMLElement): string[] {
   return Array.from(row.querySelectorAll('th, td')).map((c) => c.textContent ?? '');
 }
 
+// The table's scroll region is named by the caption.
+function scrollRegion(): HTMLElement {
+  return screen.getByRole('region', { name: 'Expense table for November 2026' });
+}
+
 describe('the table', () => {
   it('SCENARIO: named table, headers, rows in order, date cells are row headers', async () => {
     renderWithBudget(<ExpenseList />, { state: SCENARIO });
-    const table = await screen.findByRole('table', { name: 'Expenses in November 2026' });
+    const table = await screen.findByRole('table', { name: 'Expense table for November 2026' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Date',
       'Category',
@@ -56,7 +61,7 @@ describe('the table', () => {
     expect(rowText(rows[2]!).slice(0, 4)).toEqual(['Nov 1, 2026', 'Rent', 'November rent', '$1,500.00']);
     for (const row of rows) expect(within(row).getAllByRole('rowheader')).toHaveLength(1);
     expect(within(rows[0]!).getByRole('rowheader')).toHaveTextContent('Nov 5, 2026');
-    expect(screen.getByRole('heading', { name: 'Expenses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Expenses in November 2026' })).toBeInTheDocument();
     expect(screen.getByText('Newest first.')).toBeInTheDocument();
   });
 
@@ -223,7 +228,7 @@ describe('delete', () => {
     const view = renderWithBudget(<ExpenseList />, { state: withExpenses([SCENARIO.expenses[0]!]) });
     await screen.findByRole('table');
     await view.user.click(screen.getByRole('button', { name: ER }));
-    const empty = screen.getByText('No expenses yet this month.');
+    const empty = screen.getByText('No expenses in November 2026.');
     expect(empty).toHaveFocus();
     expect(view.readStored()?.expenses).toEqual([]);
   });
@@ -240,7 +245,7 @@ describe('delete', () => {
     const view = renderWithBudget(<ExpenseList />, { state: SCENARIO });
     await screen.findByRole('table');
     await view.user.tab();
-    expect(screen.getByRole('region', { name: 'Expenses in November 2026' })).toHaveFocus();
+    expect(scrollRegion()).toHaveFocus();
     await view.user.tab();
     expect(screen.getByRole('button', { name: EE })).toHaveFocus();
     await view.user.tab();
@@ -310,14 +315,14 @@ describe('delete', () => {
       await view.user.click(screen.getAllByRole('button', { name: /^Delete/ })[0]!);
       expect(document.body).not.toHaveFocus();
     }
-    expect(screen.getByText('No expenses yet this month.')).toHaveFocus();
+    expect(screen.getByText('No expenses in November 2026.')).toHaveFocus();
   });
 });
 
 describe('empty state', () => {
   it('shows the headers and one cell with the message, in a programmatically focusable paragraph', async () => {
     renderWithBudget(<ExpenseList />, { state: createInitialState('2026-11') });
-    const table = await screen.findByRole('table', { name: 'Expenses in November 2026' });
+    const table = await screen.findByRole('table', { name: 'Expense table for November 2026' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Date',
       'Category',
@@ -326,7 +331,7 @@ describe('empty state', () => {
       'Actions',
     ]);
     expect(within(table).getAllByRole('cell')).toHaveLength(1);
-    const p = screen.getByText('No expenses yet this month.');
+    const p = screen.getByText('No expenses in November 2026.');
     expect(p.tagName).toBe('P');
     expect(p).toHaveAttribute('tabindex', '-1');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
@@ -335,7 +340,7 @@ describe('empty state', () => {
   it('a state whose only expenses are in another month is empty', async () => {
     renderWithBudget(<ExpenseList />, { state: withExpenses([exp('d', '2026-10-31')]) });
     await screen.findByRole('table');
-    expect(screen.getByText('No expenses yet this month.')).toBeInTheDocument();
+    expect(screen.getByText('No expenses in November 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
@@ -343,9 +348,9 @@ describe('empty state', () => {
     const view = renderWithBudget(<ExpenseList />, { state: createInitialState('2026-11') });
     await screen.findByRole('table');
     await view.user.tab();
-    expect(screen.getByRole('region', { name: 'Expenses in November 2026' })).toHaveFocus();
+    expect(scrollRegion()).toHaveFocus();
     await view.user.tab();
-    expect(screen.getByText('No expenses yet this month.')).not.toHaveFocus();
+    expect(screen.getByText('No expenses in November 2026.')).not.toHaveFocus();
   });
 });
 
@@ -536,13 +541,13 @@ describe('accessibility', () => {
     await screen.findByRole('table');
     const regions = screen.getAllByRole('region');
     const named = regions.filter((r) => r.getAttribute('aria-labelledby') !== null);
-    const region = screen.getByRole('region', { name: 'Expenses in November 2026' });
+    const region = scrollRegion();
     expect(named).toContain(region);
     expect(region).toHaveAttribute('tabindex', '0');
   });
 
   it('inside the page, heading order has no skipped level under the single h1', async () => {
-    renderWithBudget(<BudgetApp />, { state: SCENARIO });
+    renderApp({ state: SCENARIO, path: '/spending' });
     await screen.findByRole('table');
     const levels = screen.getAllByRole('heading').map((h) => Number(h.tagName.slice(1)));
     expect(levels.filter((l) => l === 1)).toHaveLength(1);
@@ -550,12 +555,12 @@ describe('accessibility', () => {
     levels.forEach((level, i) => {
       if (i > 0) expect(level).toBeLessThanOrEqual(levels[i - 1]! + 1);
     });
-    expect(screen.getByRole('table', { name: 'Expenses in November 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Expense table for November 2026' })).toBeInTheDocument();
   });
 
-  it('BudgetApp renders the list and still has no other alerts/live regions from it', async () => {
+  it('the Spending page renders the list and still has no other alerts/live regions from it', async () => {
     render(<p>placeholder</p>);
-    renderWithBudget(<BudgetApp />, { state: SCENARIO });
+    renderApp({ state: SCENARIO, path: '/spending' });
     await screen.findByRole('table');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -566,7 +571,7 @@ describe('source rules', () => {
   const dir = import.meta.dirname;
   const src = readFileSync(join(dir, 'ExpenseList.tsx'), 'utf8');
   const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
-  const app = readFileSync(join(dir, '..', 'BudgetApp.tsx'), 'utf8');
+  const app = readFileSync(join(dir, '..', 'spending', 'SpendingPage.tsx'), 'utf8');
 
   it('starts with the client directive and imports library components only from @budget-kit/ui', () => {
     expect(src.startsWith("'use client';")).toBe(true);
@@ -614,9 +619,8 @@ describe('source rules', () => {
     expect(calls[0]!.index).toBeLessThan(catchAt);
   });
 
-  it('BudgetApp mounts <ExpenseList /> exactly once, after the header block', () => {
+  it('SpendingPage mounts <ExpenseList /> exactly once', () => {
     expect(app.match(/<ExpenseList \/>/g)).toHaveLength(1);
     expect(app.match(/ExpenseList\b/g)).toHaveLength(3);
-    expect(app.indexOf('<ExpenseList />')).toBeGreaterThan(app.indexOf('</div>'));
   });
 });

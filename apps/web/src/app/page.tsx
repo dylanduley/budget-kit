@@ -1,10 +1,7 @@
-import { BudgetApp } from '@/features/BudgetApp';
-import { BudgetProvider } from '@/state/BudgetProvider';
+import { OverviewPage } from '@/features/overview/OverviewPage';
 
-export default function HomePage() {
-  return (
-    <BudgetProvider>
-      <BudgetApp />
-    </BudgetProvider>
-  );
+export const metadata = { title: 'Overview' };
+
+export default function OverviewRoute() {
+  return <OverviewPage />;
 }

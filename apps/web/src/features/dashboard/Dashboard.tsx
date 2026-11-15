@@ -7,7 +7,7 @@ import { categoryLabel, getCategorySummaries, getTotals } from '@/lib/budget';
 import { formatMoney } from '@/lib/format';
 import { useBudget } from '@/state/BudgetProvider';
 
-const INCOME_PROMPT = 'Enter your monthly income in Set up the month below';
+const INCOME_PROMPT = 'Enter your monthly income on the Plan page';
 
 export function Dashboard(): ReactElement | null {
   const budget = useBudget();
@@ -69,7 +69,7 @@ export function Dashboard(): ReactElement | null {
       </Card>
       <Card title="Spending by category">
         {summaries.length === 0 ? (
-          <p>No categories yet. Add one in Set up the month below.</p>
+          <p>No categories yet. Add them on the Plan page.</p>
         ) : (
           <ul className="flex list-none flex-col gap-4 p-0">
             {summaries.map((summary) => {

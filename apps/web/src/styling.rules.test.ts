@@ -2,12 +2,10 @@ import { screen } from '@testing-library/react';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { BudgetApp } from '@/features/BudgetApp';
 import { SCENARIO } from '@/test/fixtures';
-import { renderWithBudget } from '@/test/renderWithBudget';
+import { renderApp } from '@/test/renderApp';
 
 const SRC = join(import.meta.dirname);
 
@@ -35,7 +33,11 @@ describe('the scan sees the app', () => {
   it('finds the screens, the shell and the state files', () => {
     const names = codeFiles.map(rel);
     for (const expected of [
-      'features/BudgetApp.tsx',
+      'features/shell/AppShell.tsx',
+      'features/overview/OverviewPage.tsx',
+      'features/spending/SpendingPage.tsx',
+      'features/plan/PlanPage.tsx',
+      'features/history/HistoryPage.tsx',
       'features/dashboard/Dashboard.tsx',
       'features/expenses/AddExpense.tsx',
       'features/expenses/ExpenseList.tsx',
@@ -67,7 +69,7 @@ describe('every MoneyField has a label ending in (USD)', () => {
   });
 
   it('populated state: every money textbox is named "... (USD)" and the others are name/note fields', () => {
-    renderWithBudget(createElement(BudgetApp), { state: SCENARIO });
+    renderApp({ state: SCENARIO, path: '/plan' });
     const boxes = screen.getAllByRole('textbox');
     const money = boxes.filter((b) => b.getAttribute('inputmode') === 'decimal');
     expect(money.length).toBe(1 + SCENARIO.categories.length + 1);
@@ -172,6 +174,7 @@ describe('no native controls, style props or style tooling', () => {
     ['<textarea', /<textarea/],
     ['<table', /<table/],
     ['<dialog', /<dialog/],
+    ['<a', /<a[\s>]/],
     ['style=', /style=/],
     ['styled(', /styled\(/],
     ['.module.css', /\.module\.css/],
