@@ -38,7 +38,7 @@ const TABBABLE = [
 
 function getTabbables(panel: HTMLElement): HTMLElement[] {
   return Array.from(panel.querySelectorAll<HTMLElement>(TABBABLE)).filter(
-    (el) => el.tabIndex >= 0 && !el.closest('[inert]'),
+    (el) => el.tabIndex >= 0 && !el.matches(':disabled') && !el.closest('[hidden], [inert]'),
   );
 }
 
@@ -54,7 +54,9 @@ export function Dialog({
 }: DialogProps) {
   const titleId = useId();
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [scrollable, setScrollable] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   // Latest values are read from refs so the document listener is attached once per open.
   const onCloseRef = useRef(onClose);
@@ -100,6 +102,7 @@ export function Dialog({
 
     const onKeyDown = (event: KeyboardEvent) => {
       const panel = panelRef.current;
+      if (event.isComposing || event.defaultPrevented) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         onCloseRef.current();
@@ -108,20 +111,20 @@ export function Dialog({
       if (event.key !== 'Tab' || !panel) return;
 
       const tabbables = getTabbables(panel);
-      const first = tabbables[0];
-      const last = tabbables[tabbables.length - 1];
       event.preventDefault();
-      if (!first || !last) {
-        panel.focus();
-        return;
-      }
+      const count = tabbables.length;
       const active = document.activeElement;
       const index = active instanceof HTMLElement ? tabbables.indexOf(active) : -1;
-      if (event.shiftKey) {
-        (index <= 0 ? last : tabbables[index - 1])?.focus();
-      } else {
-        (index === -1 || index === tabbables.length - 1 ? first : tabbables[index + 1])?.focus();
+      const step = event.shiftKey ? -1 : 1;
+      // focus() fails silently on elements that are not really focusable (e.g. display: none),
+      // so try each candidate in turn until one takes focus.
+      const start = index === -1 ? (event.shiftKey ? 0 : -1) : index;
+      for (let i = 1; i <= count; i += 1) {
+        const candidate = tabbables[(((start + step * i) % count) + count) % count];
+        candidate?.focus();
+        if (document.activeElement === candidate) return;
       }
+      panel.focus();
     };
 
     const onFocusIn = (event: FocusEvent) => {
@@ -131,10 +134,24 @@ export function Dialog({
       }
     };
 
+    // A scroller must be keyboard-focusable, but a permanent tab stop would clutter short bodies.
+    const body = bodyRef.current;
+    const measure = () => {
+      if (body) setScrollable(body.scrollHeight > body.clientHeight);
+    };
+    measure();
+    let observer: ResizeObserver | undefined;
+    if (body && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(measure);
+      observer.observe(body);
+      for (const child of Array.from(body.children)) observer.observe(child);
+    }
+
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusin', onFocusIn);
 
     return () => {
+      observer?.disconnect();
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('focusin', onFocusIn);
       for (const el of inerted) el.removeAttribute('inert');
@@ -167,7 +184,12 @@ export function Dialog({
             <span aria-hidden="true">×</span>
           </Button>
         </header>
-        <div data-part="body" className={styles.body}>
+        <div
+          ref={bodyRef}
+          data-part="body"
+          className={styles.body}
+          {...(scrollable ? { tabIndex: 0, role: 'region', 'aria-labelledby': titleId } : {})}
+        >
           {children}
         </div>
         {actions ? (
