@@ -1,5 +1,7 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { type ReactElement, useState } from 'react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BudgetApp } from '@/features/BudgetApp';
@@ -201,79 +203,166 @@ describe('confirming from the notice', () => {
   });
 });
 
-describe('focus retry timing (fake timers, inert ancestor held by the test)', () => {
-  let setLocked: (locked: boolean) => void = () => undefined;
-  function Locked({ children }: { children: ReactElement }): ReactElement {
-    const [locked, set] = useState(false);
-    setLocked = set;
-    return <div inert={locked}>{children}</div>;
-  }
+describe('confirmation focus without timers', () => {
+  it('the paragraph is the active element synchronously after the confirming click, with no timers pending', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { user } = renderWithBudget(<MonthNotice />, { state: SCENARIO, today: '2026-12-02' });
+      const dialog = await openNotice(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Reset month' }));
+      const done = screen.getByText(DONE);
+      expect(done).toHaveFocus();
+      expect(document.activeElement).toBe(done);
+      vi.useRealTimers();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-  function setup(): ReturnType<typeof renderWithFakeBudget> {
+  it('is focused with fake timers never advanced (so no timer can have done it)', () => {
     vi.useFakeTimers();
-    const r = renderWithFakeBudget(
-      <Locked>
+    try {
+      renderWithFakeBudget(<MonthNotice />, { state: SCENARIO, today: '2026-12-02' });
+      fireEvent.click(screen.getByRole('button', { name: START }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset month' }));
+      expect(screen.getByText(DONE)).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('in StrictMode the paragraph is focused and no inert is left on any body child', async () => {
+    const { user } = renderWithBudget(
+      <StrictMode>
         <MonthNotice />
-      </Locked>,
+      </StrictMode>,
       { state: SCENARIO, today: '2026-12-02' },
     );
-    fireEvent.click(screen.getByRole('button', { name: START }));
-    act(() => setLocked(true));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reset month' }));
-    return r;
+    const dialog = await openNotice(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Reset month' }));
+    expect(screen.getByText(DONE)).toHaveFocus();
+    expect(document.querySelectorAll('[inert]')).toHaveLength(0);
+    for (const child of Array.from(document.body.children)) expect(child).not.toHaveAttribute('inert');
+  });
+
+  it('MonthNotice.tsx contains no setTimeout and no MAX_FOCUS_ATTEMPTS', () => {
+    const source = readFileSync(join(import.meta.dirname, 'MonthNotice.tsx'), 'utf8');
+    expect(source).not.toMatch(/setTimeout|MAX_FOCUS_ATTEMPTS|requestAnimationFrame|queueMicrotask/);
+  });
+});
+
+describe('the dialog is mounted only while open', () => {
+  const dialogRoots = (): number => document.querySelectorAll('[data-bk-dialog-root]').length;
+
+  it('no dialog or dialog root before opening, after Cancel, and after confirming', async () => {
+    const { user } = renderWithBudget(<MonthNotice />, { state: SCENARIO, today: '2026-12-02' });
+    await screen.findByRole('button', { name: START });
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
+    expect(dialogRoots()).toBe(0);
+    await openNotice(user);
+    expect(dialogRoots()).toBe(1);
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
+    expect(dialogRoots()).toBe(0);
+    await user.click(within(await openNotice(user)).getByRole('button', { name: 'Reset month' }));
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
+    expect(dialogRoots()).toBe(0);
+  });
+
+  it('reopening after a failed reset shows no stale error', async () => {
+    const { user } = renderWithFakeBudget(<MonthNotice />, {
+      state: SCENARIO,
+      today: '2026-12-02',
+      actions: {
+        resetMonth: () => {
+          throw new Error('boom');
+        },
+      },
+    });
+    const dialog = await openNotice(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Reset month' }));
+    await screen.findByRole('alert');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await openNotice(user);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('the Card reopening after a failed reset shows no stale error', async () => {
+    const { user } = renderWithFakeBudget(<ResetMonth />, {
+      state: SCENARIO,
+      actions: {
+        resetMonth: () => {
+          throw new Error('boom');
+        },
+      },
+    });
+    await user.click(screen.getByRole('button', { name: 'Reset month' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Reset month' }));
+    await screen.findByRole('alert');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Reset month' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('Cancel is described by the consequence', () => {
+  function expectDescribed(dialog: HTMLElement, sentence: string): void {
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    const id = cancel.getAttribute('aria-describedby');
+    expect(id).toBeTruthy();
+    const target = document.getElementById(id!);
+    expect(target).not.toBeNull();
+    expect(target!.tagName).toBe('P');
+    expect(target!.textContent).toBe(sentence);
+    expect(cancel).toHaveAccessibleDescription(sentence);
+    expect(cancel).toHaveFocus();
+    // The accessible name stays plain.
+    expect(cancel).toHaveAccessibleName('Cancel');
   }
 
-  it('keeps retrying while inert, never focuses, then focuses as soon as inert lifts', () => {
-    try {
-      const { actions } = setup();
-      expect(actions.resetMonth).toHaveBeenCalledTimes(1);
-      const done = screen.getByText(DONE);
-      expect(done).not.toHaveFocus();
-      expect(vi.getTimerCount()).toBeGreaterThan(0);
-      act(() => {
-        vi.advanceTimersByTime(0);
-        vi.advanceTimersByTime(0);
-      });
-      expect(done).not.toHaveFocus();
-      act(() => setLocked(false));
-      act(() => {
-        vi.advanceTimersByTime(5);
-      });
-      expect(done).toHaveFocus();
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('from the notice (other-month copy, 3 expenses)', async () => {
+    const { user } = renderWithBudget(<MonthNotice />, { state: SCENARIO, today: '2026-12-02' });
+    expectDescribed(
+      await openNotice(user),
+      "This deletes your income, your categories and 3 expenses for November 2026, and starts a new budget for December 2026. You can't undo this.",
+    );
   });
 
-  it('gives up after a bounded number of attempts instead of looping forever', () => {
-    try {
-      setup();
-      act(() => {
-        vi.advanceTimersByTime(1000);
-      });
-      expect(vi.getTimerCount()).toBe(0);
-      expect(screen.getByText(DONE)).not.toHaveFocus();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('unmounting mid-retry leaves no timers and no warnings', () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    try {
-      const { unmount } = setup();
-      const whileRetrying = vi.getTimerCount();
+  it('from the Card (normal copy; 3, 1 and 0 expenses)', async () => {
+    const cases: [typeof SCENARIO, string][] = [
+      [SCENARIO, '3 expenses'],
+      [{ ...SCENARIO, expenses: [SCENARIO.expenses[0]!] }, '1 expense'],
+      [{ ...SCENARIO, expenses: [] }, '0 expenses'],
+    ];
+    for (const [state, count] of cases) {
+      const { user, unmount } = renderWithBudget(<ResetMonth />, { state });
+      await user.click(await screen.findByRole('button', { name: 'Reset month' }));
+      expectDescribed(
+        await screen.findByRole('dialog'),
+        `This deletes your income, your categories and ${count} for November 2026. You can't undo this.`,
+      );
       unmount();
-      // One unrelated timer exists from opening the dialog; the retry timer must be the one removed.
-      expect(vi.getTimerCount()).toBe(whileRetrying - 1);
-      act(() => {
-        vi.advanceTimersByTime(1000);
-      });
-      expect(errors).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
     }
+  });
+
+  it('the description follows the explanation when an error alert is added', async () => {
+    const { user } = renderWithFakeBudget(<ResetMonth />, {
+      state: SCENARIO,
+      actions: {
+        resetMonth: () => {
+          throw new Error('boom');
+        },
+      },
+    });
+    await user.click(screen.getByRole('button', { name: 'Reset month' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Reset month' }));
+    await screen.findByRole('alert');
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveAccessibleDescription(
+      "This deletes your income, your categories and 3 expenses for November 2026. You can't undo this.",
+    );
   });
 });
 
