@@ -5,6 +5,46 @@ const meta = {
   title: 'Components/TextField',
   component: TextField,
   args: { label: 'Expense name' },
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          'A single-line text input with a visible label, an optional hint and an optional error message. Use it for free text, and for whole numbers with `type="number"`.',
+          '',
+          'The label is linked to the input, the hint and error are linked with `aria-describedby`, and the input is marked `aria-invalid` while an error shows. Keyboard behaviour is the browser\'s native text input behaviour.',
+          '',
+          '**Known limitations**',
+          '- Errors are linked to the control with `aria-describedby` and `aria-invalid` but are not announced when they first appear unless the control has focus.',
+        ].join('\n'),
+      },
+    },
+  },
+  argTypes: {
+    label: {
+      description: 'Visible label, linked to the input. Required.',
+    },
+    hint: {
+      description: 'Helper text shown under the label, read with the input.',
+    },
+    error: {
+      description: 'Error message shown under the field. Setting it marks the input as invalid.',
+    },
+    prefix: {
+      description: 'Text shown before the input, such as `$`. It is hidden from assistive technology, so put the unit in the label.',
+    },
+    type: {
+      description: 'Native input type: `text` (default) or `number`.',
+    },
+    required: {
+      description: 'Marks the input as required with the native attribute.',
+    },
+    disabled: {
+      description: 'Disables the input.',
+    },
+    defaultValue: {
+      description: 'Initial value for an uncontrolled input.',
+    },
+  },
 } satisfies Meta<typeof TextField>;
 
 export default meta;

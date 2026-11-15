@@ -6,6 +6,37 @@ const meta = {
   title: 'Components/Button',
   component: Button,
   args: { children: 'Save budget' },
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          'A button for an action the user takes on the page or in a form. Use `primary` for the main action in a view and `danger` only for destructive actions; use a link to navigate.',
+          '',
+          'Enter and Space activate it natively. While `loading`, it keeps focus and its name, sets `aria-busy` and `aria-disabled`, ignores clicks (so a loading submit button does not submit its form), and hides the spinner from assistive technology.',
+        ].join('\n'),
+      },
+    },
+  },
+  argTypes: {
+    variant: {
+      description: 'Visual style: `primary`, `secondary`, `ghost` or `danger`.',
+    },
+    size: {
+      description: 'Height and font size: `md` (default) or `sm`.',
+    },
+    loading: {
+      description: 'Shows a spinner over the label and blocks clicks while an action is in progress. The label keeps its width.',
+    },
+    disabled: {
+      description: 'Disables the button. It cannot be focused or activated.',
+    },
+    type: {
+      description: 'Native button type: `button` (default), `submit` or `reset`.',
+    },
+    children: {
+      description: 'The button label. It is the accessible name.',
+    },
+  },
 } satisfies Meta<typeof Button>;
 
 export default meta;

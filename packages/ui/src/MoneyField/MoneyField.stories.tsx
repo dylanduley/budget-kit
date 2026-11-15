@@ -13,6 +13,54 @@ const meta = {
   title: 'Components/MoneyField',
   component: MoneyField,
   args: { label: 'Monthly income', value: null, onChange: () => undefined },
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          'A text input for an amount of money, such as 1,200.50. Use it wherever the user enters money, and pass the amount as integer cents (`12050` is 120.50), never as a float.',
+          '',
+          'It formats the amount when it loses focus and reports empty or invalid text to `onChange` as `null`. Errors show on blur, not on each keystroke. The currency symbol is hidden from assistive technology, so name the currency in the label.',
+          '',
+          '**Known limitations**',
+          '- It is controlled only: `value` is integer cents or `null`, and `onChange` receives integer cents or `null` (empty or invalid text reports `null`).',
+          '- Errors appear when the field loses focus, not on each keystroke; a parse error replaces the `error` prop while it is showing.',
+          '- If the parent applies `onChange` slowly (debounced or asynchronous state), typing can outrun the echoed value and the field may reformat text mid-typing. Synchronous React state is fine.',
+          '- A parent calling `setValue(null)` while the field holds invalid text (already reported as `null`) does not clear the text, because the value did not change.',
+          '- The currency symbol is decorative: it is hidden from assistive technology, so say the currency in the label or hint.',
+          '- On iOS the decimal keypad has no minus key, so negative amounts are hard to enter when `allowNegative` is on.',
+          '- A `value` that is not a safe integer (a float or NaN) throws a `RangeError` while rendering.',
+          '- The largest amount is 999,999,999,999.99.',
+          '- Errors are linked to the control with `aria-describedby` and `aria-invalid` but are not announced when they first appear unless the control has focus.',
+        ].join('\n'),
+      },
+    },
+  },
+  argTypes: {
+    label: {
+      description: 'Visible label, linked to the input. Name the currency here, since the symbol is hidden from assistive technology.',
+    },
+    value: {
+      description: 'The amount in integer cents, or `null` for empty. Example: `12050` shows 120.50.',
+    },
+    onChange: {
+      description: 'Called with the new amount in integer cents, or `null` when the text is empty or invalid.',
+    },
+    allowNegative: {
+      description: 'Accepts a leading minus sign. Off by default, so negative amounts are rejected with an error.',
+    },
+    currencySymbol: {
+      description: 'Symbol shown before the input. Decorative and hidden from assistive technology. Defaults to `$`.',
+    },
+    hint: {
+      description: 'Helper text shown under the label, read with the input.',
+    },
+    error: {
+      description: 'Error message from the parent, shown under the field. A parse error replaces it while it is showing.',
+    },
+    disabled: {
+      description: 'Disables the input.',
+    },
+  },
   render: (args) => {
     const { value, onChange, ...rest } = args;
     void onChange;
