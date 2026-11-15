@@ -1,4 +1,5 @@
-import { createRef } from 'react';
+import { createRef, useState } from 'react';
+import type { ReactElement } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
@@ -198,6 +199,95 @@ describe('Select', () => {
   it('the chevron adds no DOM text: the select only contains its options', () => {
     render(<Select label="Category" options={options} />);
     expect(screen.getByLabelText('Category').textContent).toBe('FoodRentFun');
+  });
+
+  it('placeholder with no value and no defaultValue: the placeholder is selected and submits an empty string', () => {
+    const { container } = render(
+      <form>
+        <Select label="Category" name="cat" options={options} placeholder="Choose" />
+      </form>,
+    );
+    const select = screen.getByLabelText('Category') as HTMLSelectElement;
+    expect(select).toHaveValue('');
+    expect(select.selectedOptions).toHaveLength(1);
+    expect(select.selectedOptions[0]).toHaveTextContent('Choose');
+    expect((screen.getAllByRole('option')[0] as HTMLOptionElement).selected).toBe(true);
+    const form = container.querySelector('form') as HTMLFormElement;
+    expect(new FormData(form).get('cat')).toBe('');
+  });
+
+  it('placeholder with an explicit defaultValue selects that option, not the placeholder', () => {
+    render(<Select label="Category" options={options} placeholder="Choose" defaultValue="fun" />);
+    const select = screen.getByLabelText('Category') as HTMLSelectElement;
+    expect(select).toHaveValue('fun');
+    expect(select.selectedOptions[0]).toHaveTextContent('Fun');
+  });
+
+  it('placeholder with controlled value="" selects the placeholder without a React warning', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<Select label="Category" options={options} placeholder="Choose" value="" onChange={() => {}} />);
+    const select = screen.getByLabelText('Category') as HTMLSelectElement;
+    expect(select).toHaveValue('');
+    expect(select.selectedOptions[0]).toHaveTextContent('Choose');
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('placeholder with a controlled real value selects that option', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<Select label="Category" options={options} placeholder="Choose" value="fun" onChange={() => {}} />);
+    const select = screen.getByLabelText('Category') as HTMLSelectElement;
+    expect(select).toHaveValue('fun');
+    expect(select.selectedOptions[0]).toHaveTextContent('Fun');
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('without placeholder and no value, the first real option is selected', () => {
+    render(<Select label="Category" options={options} />);
+    const select = screen.getByLabelText('Category') as HTMLSelectElement;
+    expect(select).toHaveValue('food');
+    expect(select.selectedOptions[0]).toHaveTextContent('Food');
+  });
+
+  it('from the placeholder state the user can pick a real option and then the value is a real one', async () => {
+    const user = userEvent.setup();
+    render(<Select label="Category" options={options} placeholder="Choose" />);
+    const select = screen.getByLabelText('Category');
+    expect(select).toHaveValue('');
+    await user.selectOptions(select, 'fun');
+    expect(select).toHaveValue('fun');
+  });
+
+  it('a controlled value re-renders to the new value after selectOptions', async () => {
+    const user = userEvent.setup();
+    function Controlled(): ReactElement {
+      const [value, setValue] = useState('food');
+      return <Select label="Category" options={options} value={value} onChange={(e) => setValue(e.target.value)} />;
+    }
+    render(<Controlled />);
+    const select = screen.getByLabelText('Category');
+    expect(select).toHaveValue('food');
+    await user.selectOptions(select, 'fun');
+    expect(select).toHaveValue('fun');
+  });
+
+  it('a controlled value stays put when the parent ignores the change', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Select label="Category" options={options} value="food" onChange={onChange} />);
+    await user.selectOptions(screen.getByLabelText('Category'), 'fun');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('Category')).toHaveValue('food');
+  });
+
+  it('data-invalid="true" is on the Field root only when there is an error', () => {
+    const { container, rerender } = render(<Select label="Category" options={options} error="Bad" />);
+    expect(container.querySelector('[data-part="field"]')).toHaveAttribute('data-invalid', 'true');
+    rerender(<Select label="Category" options={options} error="" />);
+    expect(container.querySelector('[data-part="field"]')).not.toHaveAttribute('data-invalid');
+    rerender(<Select label="Category" options={options} />);
+    expect(container.querySelector('[data-invalid]')).toBeNull();
   });
 
   it('omitting label or options is a type error', () => {
