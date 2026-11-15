@@ -22,8 +22,18 @@ See [../followups-plan.md](../followups-plan.md) for order, planner defaults and
 
 | # | Task | Depends on | Group | Shared files touched |
 |---|---|---|---|---|
-| 09 | [Invalid money text warns and is not saved](09-invalid-money-not-saved.md) | library 14 | F2 | `src/features/setup/MonthSetup.tsx`; one sentence in this README |
-| 10 | [Announce non-error changes with StatusMessage](10-status-announcements.md) | library 15, app 09 | F3 | `AddExpense.tsx`, `ExpenseList.tsx`, `MonthSetup.tsx`, `BudgetApp.tsx`, `styling.rules.test.ts`, four existing tests; two passages in this README |
+| 09 | [Invalid money text warns and is not saved](09-invalid-money-not-saved.md) (superseded by 26) | library 14 | F2 | `src/features/setup/MonthSetup.tsx`; one sentence in this README |
+| 10 | [Announce non-error changes with StatusMessage](10-status-announcements.md) (superseded by 27) | library 15, app 09 | F3 | `AddExpense.tsx`, `ExpenseList.tsx`, `MonthSetup.tsx`, `BudgetApp.tsx`, `styling.rules.test.ts`, four existing tests; two passages in this README |
+
+### Follow-ups after the redesign (planned, not built)
+09 and 10 were written before the redesign (app tasks 20–25, `../redesign-plan.md`) and are replaced by 26 and 27. See [../followups-plan2.md](../followups-plan2.md) for order, planner defaults, risks and the existing tests that change.
+
+| # | Task | Depends on | Group | Shared files touched |
+|---|---|---|---|---|
+| 26 | [Invalid money text warns and is not saved](26-invalid-money-not-saved.md) | library 14 | G1 | `src/features/plan/IncomeCard.tsx`, `CategoryRow.tsx`, `AddCategoryDialog.tsx`; one sentence in this README |
+| 28 | [Back up the old saved data before it is first overwritten](28-saved-data-backup.md) | none | G1 | `src/state/storage.ts`, `src/state/BudgetProvider.tsx`; one sentence in this README |
+| 29 | [Compact header on phones](29-compact-header.md) | none | G1 | `src/features/shell/AppShell.tsx` (header), `src/features/month/MonthSwitcher.tsx`; `styling.rules.test.ts` (one count) |
+| 27 | [Announce non-error changes with StatusMessage](27-status-announcements.md) | library 15, app 26, app 29 | G2 | `AddExpense.tsx`, `ExpenseList.tsx`, `CategoriesCard.tsx`, `AddCategoryDialog.tsx`, `AppShell.tsx` (main); `styling.rules.test.ts`; two passages in this README and two in task 25 |
 
 ## Build order and parallel groups
 
