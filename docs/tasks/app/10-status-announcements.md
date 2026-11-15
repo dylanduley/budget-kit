@@ -1,3 +1,5 @@
+> Superseded by 27: written before the redesign.
+
 # 10: Announce non-error changes with StatusMessage
 
 Wires the library's `StatusMessage` (task 15) into the app so screen-reader users hear four kinds of change they cannot otherwise perceive without hunting for them: an expense added, an expense deleted (both with the new left to spend), a category removed, and the saved-data "replaced" message. WCAG 4.1.3 Status Messages. Also changes the app convention and the `styling.rules` test that today forbid any status region, so they allow exactly these library regions and nothing else.

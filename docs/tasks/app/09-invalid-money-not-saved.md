@@ -1,3 +1,5 @@
+> Superseded by 26: written before the redesign.
+
 # 09: Invalid money text warns and is not saved
 
 In Set up the month, invalid text in `Monthly income (USD)` or a `Category {n} planned (USD)` field no longer saves `$0`. The saved amount is kept, and the library's error shows as soon as the text is invalid, not only on blur. Clearing a field still saves `0` (unchanged).
