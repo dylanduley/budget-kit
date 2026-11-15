@@ -9,12 +9,12 @@ const meta = {
     docs: {
       description: {
         component: [
-          'A single-line text input with a visible label, an optional hint and an optional error message. Use it for free text, and for whole numbers with `type="number"`.',
+          'A single-line text input with a visible label, an optional hint and an optional error message. Use it for free text, and for numbers with `type="number"`.',
           '',
           'The label is linked to the input, the hint and error are linked with `aria-describedby`, and the input is marked `aria-invalid` while an error shows. Keyboard behaviour is the browser\'s native text input behaviour.',
           '',
           '**Known limitations**',
-          '- Errors are linked to the control with `aria-describedby` and `aria-invalid` but are not announced when they first appear unless the control has focus.',
+          '- Errors are not announced when they appear. They are linked with `aria-describedby` and `aria-invalid`, so a screen reader reads them when the control is focused.',
         ].join('\n'),
       },
     },
@@ -24,7 +24,7 @@ const meta = {
       description: 'Visible label, linked to the input. Required.',
     },
     hint: {
-      description: 'Helper text shown under the label, read with the input.',
+      description: 'Helper text shown under the field, read with the input.',
     },
     error: {
       description: 'Error message shown under the field. Setting it marks the input as invalid.',

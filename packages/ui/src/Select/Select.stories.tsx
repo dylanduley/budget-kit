@@ -23,7 +23,7 @@ const meta = {
           '**Known limitations**',
           '- It is a native `<select>`: keyboard behaviour and the open list are the browser\'s own, and the open list is not styled.',
           '- With a `placeholder` and no `value` or `defaultValue`, the placeholder (a disabled first option) is selected initially.',
-          '- Errors are linked to the control with `aria-describedby` and `aria-invalid` but are not announced when they first appear unless the control has focus.',
+          '- Errors are not announced when they appear. They are linked with `aria-describedby` and `aria-invalid`, so a screen reader reads them when the control is focused.',
         ].join('\n'),
       },
     },
@@ -33,7 +33,7 @@ const meta = {
       description: 'Visible label, linked to the select. Required.',
     },
     hint: {
-      description: 'Helper text shown under the label, read with the select.',
+      description: 'Helper text shown under the field, read with the select.',
     },
     error: {
       description: 'Error message shown under the field. Setting it marks the select as invalid.',

@@ -12,7 +12,7 @@ const meta = {
         component: [
           'A button for an action the user takes on the page or in a form. Use `primary` for the main action in a view and `danger` only for destructive actions; use a link to navigate.',
           '',
-          'Enter and Space activate it natively. While `loading`, it keeps focus and its name, sets `aria-busy` and `aria-disabled`, ignores clicks (so a loading submit button does not submit its form), and hides the spinner from assistive technology.',
+          'Enter and Space activate it natively. While `loading`, it keeps focus, keeps its label in the accessibility tree (the label is only made transparent, and the button is not natively `disabled`), sets `aria-busy` and `aria-disabled`, ignores clicks (so a loading submit button does not submit its form), and hides the spinner from assistive technology.',
         ].join('\n'),
       },
     },

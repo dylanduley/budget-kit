@@ -22,13 +22,13 @@ const meta = {
       description: 'Name of what is being measured, such as "Groceries". Read as the progress bar\'s name.',
     },
     value: {
-      description: 'The amount used. Negative and non-numeric values are treated as 0.',
+      description: 'The amount used. For money, pass integer cents. Negative and non-numeric values are treated as 0.',
     },
     max: {
-      description: 'The limit. The bar is full at `max`; a `value` above it shows as over budget.',
+      description: 'The limit, in the same unit as `value` (integer cents for money). The bar is full at `max`; a `value` above it shows as over budget.',
     },
     formatValue: {
-      description: 'Turns an amount into text for the status line, for example integer cents into dollars. Defaults to the plain number.',
+      description: 'Turns an amount into text for the status line. For money, format the integer cents here, for example 45050 as "$450.50". Defaults to the plain number.',
     },
   },
   decorators: [
