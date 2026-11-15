@@ -23,7 +23,7 @@ const meta = {
           '',
           '**Known limitations**',
           '- It is controlled only: `value` is integer cents or `null`, and `onChange` receives integer cents or `null` (empty or invalid text reports `null`; check the second argument to tell them apart).',
-          '- By default errors appear when the field loses focus. With `validateOn="change"` they appear on each keystroke, so a half-typed amount such as `1,` shows an error until it is complete. A parse error replaces the `error` prop while it is showing.',
+          '- By default errors appear when the field loses focus. With `validateOn="change"` they appear on each keystroke, so a half-typed amount such as `1,` shows an error until it is complete. A parse error replaces the `error` prop while it is showing. Because errors are announced as alerts, `change` can interrupt screen-reader users mid-entry. Use `blur` for general forms. Use `change` only where the app needs to know about invalid text immediately, for example to avoid saving it, and where a half-typed amount is rare.',
           '- If the parent applies `onChange` slowly (debounced or asynchronous state), typing can outrun the echoed value and the field may reformat text mid-typing. Synchronous React state is fine.',
           '- A parent calling `setValue(null)` while the field holds invalid text (already reported as `null`) does not clear the text, because the value did not change.',
           '- The currency symbol is decorative: it is hidden from assistive technology, so say the currency in the label or hint.',
