@@ -397,6 +397,44 @@ describe("Delete all data: confirming", () => {
     expect(document.body.querySelector("[data-bk-dialog-root]")).toBeNull();
   });
 
+  it("a second delete in the same visit focuses the confirmation paragraph again", async () => {
+    const { user } = renderApp({ book: BOOK, path: "/history" });
+    await confirm(user);
+    expect(screen.getByText(CONFIRMATION)).toHaveFocus();
+    await confirm(user);
+    await act(async () => undefined);
+    const confirmation = screen.getByText(CONFIRMATION);
+    expect(document.activeElement).toBe(confirmation);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getAllByText(CONFIRMATION)).toHaveLength(1);
+  });
+
+  it("the first confirmation paragraph stays in the DOM while a second dialog is open", async () => {
+    const { user } = renderApp({ book: BOOK, path: "/history" });
+    await confirm(user);
+    await user.click(screen.getByRole("button", { name: "Delete all data" }));
+    expect(screen.getByRole("dialog", { name: "Delete all data?" })).toBeInTheDocument();
+    expect(screen.getByText(CONFIRMATION)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  });
+
+  it.each([
+    ["Cancel", async (u: ReturnType<typeof renderApp>["user"]) => u.click(screen.getByRole("button", { name: "Cancel" }))],
+    ["Esc", async (u: ReturnType<typeof renderApp>["user"]) => u.keyboard("{Escape}")],
+  ])("%s on the second dialog returns focus to the trigger, not the paragraph", async (_name, dismiss) => {
+    const { user, storage } = renderApp({ book: BOOK, path: "/history" });
+    await confirm(user);
+    const dump = storage.dump();
+    const trigger = screen.getByRole("button", { name: "Delete all data" });
+    await user.click(trigger);
+    await dismiss(user);
+    await act(async () => undefined);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(document.activeElement).not.toBe(screen.getByText(CONFIRMATION));
+    expect(storage.dump()).toEqual(dump);
+  });
+
   it("the confirmation is plain (not an alert or status) and stays until leaving the page", async () => {
     const { user } = renderApp({ book: BOOK, path: "/history" });
     await confirm(user);
