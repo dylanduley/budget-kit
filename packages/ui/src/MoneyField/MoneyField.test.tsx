@@ -452,3 +452,61 @@ describe('MoneyField: public API and stories', () => {
     expect(stories.default.title).toBe('Components/MoneyField');
   });
 });
+
+describe('MoneyField: error is announced (role="alert")', () => {
+  it('error prop: the alert has exactly that text and is the element aria-describedby points at', () => {
+    render(<MoneyField label="Income" id="m" value={null} onChange={() => {}} error="Too much" />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/^Too much$/);
+    expect(alert.children).toHaveLength(0);
+    expect(alert).toHaveAttribute('id', 'm-error');
+    expect(field()).toHaveAttribute('aria-describedby', 'm-error');
+  });
+
+  it.each([undefined, ''])('with error=%j there is no alert and no aria-invalid or aria-describedby', (error) => {
+    render(<MoneyField label="Income" value={null} onChange={() => {}} error={error} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(field()).not.toHaveAttribute('aria-invalid');
+    expect(field()).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('typing abc and tabbing away makes the alert appear (absent before the blur); clearing and typing 5 removes it', async () => {
+    const user = userEvent.setup();
+    render(<Controlled label="Income" id="m" />);
+    await user.type(field(), 'abc');
+    expect(screen.queryByRole('alert')).toBeNull();
+    await user.tab();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/^Enter an amount like 12\.50$/);
+    expect(alert).toHaveAttribute('id', 'm-error');
+    expect(field()).toHaveAttribute('aria-describedby', 'm-error');
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    await user.clear(field());
+    await user.type(field(), '5');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(field()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it("typing -5 and tabbing away shows \"Amount can't be negative\" as the alert", async () => {
+    const user = userEvent.setup();
+    render(<Controlled label="Income" />);
+    await user.type(field(), '-5');
+    expect(screen.queryByRole('alert')).toBeNull();
+    await user.tab();
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Amount can't be negative$/);
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('the hint has no role, and with a hint and a parse error there is exactly one alert', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Controlled label="Income" id="m" hint="Monthly" />);
+    expect(container.querySelector('#m-hint')).not.toHaveAttribute('role');
+    expect(screen.queryByRole('alert')).toBeNull();
+    await user.type(field(), 'abc');
+    await user.tab();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(container.querySelector('#m-hint')).not.toHaveAttribute('role');
+    expect(field()).toHaveAttribute('aria-describedby', 'm-error m-hint');
+  });
+});
