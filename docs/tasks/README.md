@@ -1,6 +1,6 @@
 # Component library tasks
 
-Plan for `docs/specs/components.md`. One file per task; each is self-contained for a builder (with `CLAUDE.md`) and for QA. Nothing is built yet: this plan needs the lead's review first.
+Plan for `docs/specs/components.md`. One file per task; each is self-contained for a builder (with `CLAUDE.md`) and for QA. All of these tasks are built and merged (see `docs/build-log.md`).
 
 ## Tasks
 

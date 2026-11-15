@@ -12,8 +12,8 @@ I'm the lead: I write the specs, approve plans, review every task's results, and
 7. **docs-writer** updates Storybook docs and `docs/build-log.md` after each batch.
 
 ## Guardrails
-- A hook typechecks after every edit, and the failure is fed back to the agent immediately.
-- CI runs typecheck, lint, tests, accessibility checks, and the build on every push.
+- Every agent runs `npm run check` (typecheck, lint, tests) before reporting a task done, and the lead re-runs it before merging. There is no edit hook yet.
+- There is no CI yet. `npm run test:a11y` and `npm run build` are run by hand before a release; wiring `check`, the a11y tests and the build into CI on every push is still to do.
 - The app can only use library components, which keeps the design system honest.
 
 ## Models

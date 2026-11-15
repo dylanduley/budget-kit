@@ -6,7 +6,7 @@ Versioned, validated `localStorage` storage; a reducer over the task 01 function
 
 **Parallel group**: 1 (runs alone)
 
-**Status (after review, 2026-11-15)**: built and reviewed. The review added behaviours **N1–N8** below, which the builder is implementing now; everything not marked **(new)** is already built. N8 was added by the planner so screen tasks can test a throwing action.
+**Status (2026-11-15)**: built, reviewed and merged. The review added behaviours **N1–N8** below, all now implemented. N8 was added by the planner so screen tasks can test a throwing action.
 - **N1** load treats data that cannot be totalled as `corrupt`; **N2** actions refuse changes that would make a total unsafe (`RangeError` `That change would make a total too large.`); **N3** no-op actions neither save nor change state; **N4** `savedDataReplaced`; **N5** `createId` fallback without `crypto.randomUUID`; **N6** skeleton heading wrapper `flex flex-col gap-2`; **N7** `renderWithBudget` seeds through the memory storage's initial data and returns the memory-storage type; **N8** `BudgetContext` export and `renderWithFakeBudget` helper.
 
 ## Conventions (identical in every app task)

@@ -1,13 +1,13 @@
 # Budget planner app tasks
 
-Plan for `docs/specs/app-brief.md` (`apps/web`). One file per task; each is self-contained for a feature-builder (with `CLAUDE.md`) and for QA. Nothing is built yet: this plan needs the lead's review first. The lead's product decisions on task 01 (left to spend, over budget, removed categories, rollover, minimum amount, category names) are already worked in.
+Plan for `docs/specs/app-brief.md` (`apps/web`). One file per task; each is self-contained for a feature-builder (with `CLAUDE.md`) and for QA. All of these tasks are built and merged (see `docs/build-log.md`). The lead's product decisions on task 01 (left to spend, over budget, removed categories, rollover, minimum amount, category names) are already worked in.
 
 ## Tasks
 
 | # | Task | Depends on | Group | Shared files touched |
 |---|---|---|---|---|
 | 01 | [Budget math](01-budget-math.md) | none | 0 | creates `src/lib/budget.ts`, `src/lib/format.ts` |
-| 02 | [Persistence and app state](02-persistence-and-state.md) | 01 | 1 | creates `src/state/*`, `src/lib/clock.ts`, `src/features/BudgetApp.tsx`, `src/test/*` (incl. `renderWithFakeBudget`); edits `src/app/page.tsx`, `vitest.config.ts`, `apps/web/package.json`, `package-lock.json`. Built and reviewed; review items N1–N8 being implemented, and group 2 starts only after they are merged |
+| 02 | [Persistence and app state](02-persistence-and-state.md) | 01 | 1 | creates `src/state/*`, `src/lib/clock.ts`, `src/features/BudgetApp.tsx`, `src/test/*` (incl. `renderWithFakeBudget`); edits `src/app/page.tsx`, `vitest.config.ts`, `apps/web/package.json`, `package-lock.json`. Built, reviewed and merged, including review items N1–N8 |
 | 03 | [Month setup](03-month-setup.md) | 02 | 2 | `src/features/BudgetApp.tsx` (one line) |
 | 04 | [Add expense](04-add-expense.md) | 02 | 2 | `src/features/BudgetApp.tsx` (one line); own files in `src/features/expenses/` |
 | 05 | [Dashboard](05-dashboard.md) | 02 | 2 | `src/features/BudgetApp.tsx` (one line) |
