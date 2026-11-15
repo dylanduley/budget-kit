@@ -166,6 +166,7 @@ describe('SCENARIO categories', () => {
     );
     const li = item('Eating out');
     expect(within(li).getByText('Over budget')).toHaveAttribute('data-variant', 'danger');
+    expect(within(li).getByText('Over budget')).toHaveClass('self-start');
     expect(within(li).getByText(/over by \$12\.35/)).toBeInTheDocument();
     expect(within(li).queryByText(/ left$/)).not.toBeInTheDocument();
   });
@@ -214,6 +215,7 @@ describe('boundaries', () => {
     await show(state);
     const li = item('Transport');
     expect(within(li).getByText('No plan set')).toBeInTheDocument();
+    expect(within(li).getByText('No plan set')).toHaveClass('self-start');
     expect(within(li).getByText('Spent $0.01')).toBeInTheDocument();
     expect(within(li).queryByText('Over budget')).not.toBeInTheDocument();
     expect(within(li).queryByRole('progressbar')).toBeNull();
@@ -697,12 +699,12 @@ describe('source rules', () => {
     expect(dashboard).not.toMatch(/@budget-kit\/ui\/src/);
   });
 
-  it('uses only layout Tailwind classes on plain elements and no className on library components', () => {
+  it('uses only layout Tailwind classes on plain elements and no className on library components except self-* on Badge', () => {
     const classNames = Array.from(dashboard.matchAll(/className="([^"]*)"/g)).flatMap((m) => (m[1] ?? '').split(/\s+/));
     for (const cls of classNames) {
-      expect(cls).toMatch(/^(sm:)?(flex|grid|gap-|p-|px-|py-|m|list-none|grid-cols-|flex-col|items-|justify-|max-w-|w-full)/);
+      expect(cls).toMatch(/^(sm:)?(flex|grid|gap-|p-|px-|py-|m|list-none|grid-cols-|flex-col|items-|self-|justify-|max-w-|w-full)/);
     }
-    expect(dashboard).not.toMatch(/<(Stat|Card|ProgressBar|Badge)\b[^>]*className/);
+    expect(dashboard).not.toMatch(/<(Stat|Card|ProgressBar)\b[^>]*className/);
     expect(dashboard).toMatch(/sm:grid-cols-2/);
   });
 
