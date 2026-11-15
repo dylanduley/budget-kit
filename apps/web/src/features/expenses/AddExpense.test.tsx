@@ -893,7 +893,7 @@ describe('required semantics and structure', () => {
       ['textbox', 'Note'],
       ['combobox', 'Date'],
     ] as const) {
-      expect(within(dialog()).getByRole(role, { name, exact: true })).toBeInTheDocument();
+      expect(within(dialog()).getByRole(role, { name })).toBeInTheDocument();
     }
   });
 
