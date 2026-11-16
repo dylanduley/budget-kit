@@ -5,6 +5,8 @@ import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { SCENARIO } from '@/test/fixtures';
+import { STORAGE_KEY } from '@/state/storage';
+import { createMemoryStorage } from '@/test/memoryStorage';
 import { renderApp } from '@/test/renderApp';
 
 const SRC = join(import.meta.dirname);
@@ -165,6 +167,32 @@ describe('alerts and live regions', () => {
       'features/plan/CategoriesCard.tsx': 1,
       'features/shell/AppShell.tsx': 1,
     });
+  });
+
+  it('every live region on the page is a library StatusMessage or the month label', () => {
+    const table = [
+      { path: '/', messages: 1, labels: 1 },
+      { path: '/spending', messages: 2, labels: 1 },
+      { path: '/plan', messages: 2, labels: 1 },
+      { path: '/history', messages: 1, labels: 0 },
+    ];
+    for (const { path, messages, labels } of table) {
+      for (const options of [{ state: SCENARIO }, { storage: createMemoryStorage({ [STORAGE_KEY]: 'not json' }) }]) {
+        const view = renderApp({ ...options, path });
+        const live = Array.from(document.querySelectorAll('[role="status"], [aria-live]'));
+        const library = live.filter((el) => el.getAttribute('data-part') === 'status-message');
+        const rest = live.filter((el) => el.getAttribute('data-part') !== 'status-message');
+        expect(library, path).toHaveLength(messages);
+        expect(rest, path).toHaveLength(labels);
+        for (const el of rest) {
+          expect(el.tagName, path).toBe('P');
+          expect(el.getAttribute('aria-live'), path).toBe('polite');
+          expect(screen.getAllByRole('banner').some((b) => b.contains(el)), path).toBe(true);
+          expect(el.textContent, path).toBe('November 2026');
+        }
+        view.unmount();
+      }
+    }
   });
 });
 
