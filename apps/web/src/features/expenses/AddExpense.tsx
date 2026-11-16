@@ -1,11 +1,18 @@
 'use client';
 
-import { type FormEvent, type ReactElement, type RefObject, useId, useRef, useState } from 'react';
+import { type FormEvent, type ReactElement, type RefObject, useEffect, useId, useRef, useState } from 'react';
 
-import { Button, Dialog, MoneyField, Select, TextField } from '@budget-kit/ui';
+import { Button, Dialog, MoneyField, Select, StatusMessage, TextField } from '@budget-kit/ui';
 
-import { type BudgetState, categoryLabel, datesInMonth, defaultExpenseDate } from '@/lib/budget';
-import { formatDate } from '@/lib/format';
+import {
+  type BudgetState,
+  type NewExpense,
+  categoryLabel,
+  datesInMonth,
+  defaultExpenseDate,
+  getTotals,
+} from '@/lib/budget';
+import { formatDate, formatMoney } from '@/lib/format';
 import { type BudgetActions, TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
 
 import { type ExpenseField, NOTE_MAX_LENGTH, validateExpenseForm } from './expenseForm';
@@ -20,10 +27,10 @@ interface ExpenseDialogFormProps {
   today: string;
   actions: BudgetActions;
   amountRef: RefObject<HTMLInputElement | null>;
-  onDone: () => void;
+  onSaved: (expense: NewExpense) => void;
 }
 
-function ExpenseDialogForm({ formId, state, today, actions, amountRef, onDone }: ExpenseDialogFormProps): ReactElement {
+function ExpenseDialogForm({ formId, state, today, actions, amountRef, onSaved }: ExpenseDialogFormProps): ReactElement {
   const categoryRef = useRef<HTMLSelectElement | null>(null);
   const noteRef = useRef<HTMLInputElement | null>(null);
   const [amountCents, setAmountCents] = useState<number | null>(null);
@@ -67,7 +74,7 @@ function ExpenseDialogForm({ formId, state, today, actions, amountRef, onDone }:
       }
       return;
     }
-    onDone();
+    onSaved(result.expense);
   }
 
   return (
@@ -132,8 +139,23 @@ function ExpenseDialogForm({ formId, state, today, actions, amountRef, onDone }:
 export function AddExpense(): ReactElement | null {
   const budget = useBudget();
   const [open, setOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState({ message: '', key: 0 });
   const amountRef = useRef<HTMLInputElement | null>(null);
+  const pendingAnnouncement = useRef<NewExpense | null>(null);
   const formId = useId();
+  const readyState = budget.status === 'ready' ? budget.state : null;
+
+  useEffect(() => {
+    const expense = pendingAnnouncement.current;
+    if (expense === null || open || readyState === null) return;
+    pendingAnnouncement.current = null;
+    const left = getTotals(readyState);
+    const message =
+      `Expense added: ${formatMoney(expense.amountCents)} for ${categoryLabel(readyState, expense.categoryId)} on ${formatDate(expense.date)}.` +
+      (left.hasIncome ? ` Left to spend: ${formatMoney(left.leftToSpendCents)}.` : '');
+    // Announce only after focus has moved and any dialog has gone.
+    setAnnouncement((current) => ({ message, key: current.key + 1 }));
+  }, [open, readyState]);
 
   if (budget.status !== 'ready') return null;
   const { state, today, actions } = budget;
@@ -147,31 +169,37 @@ export function AddExpense(): ReactElement | null {
       <Button className="self-start" onClick={() => setOpen(true)}>
         Add expense
       </Button>
-      <Dialog
-        open={open}
-        onClose={close}
-        title="Add expense"
-        initialFocusRef={amountRef}
-        actions={
-          <>
-            <Button variant="secondary" onClick={close}>
-              Cancel
-            </Button>
-            <Button type="submit" form={formId}>
-              Save expense
-            </Button>
-          </>
-        }
-      >
-        <ExpenseDialogForm
-          formId={formId}
-          state={state}
-          today={today}
-          actions={actions}
-          amountRef={amountRef}
-          onDone={close}
-        />
-      </Dialog>
+      <StatusMessage visuallyHidden message={announcement.message} announceKey={announcement.key} />
+      {open ? (
+        <Dialog
+          open
+          onClose={close}
+          title="Add expense"
+          initialFocusRef={amountRef}
+          actions={
+            <>
+              <Button variant="secondary" onClick={close}>
+                Cancel
+              </Button>
+              <Button type="submit" form={formId}>
+                Save expense
+              </Button>
+            </>
+          }
+        >
+          <ExpenseDialogForm
+            formId={formId}
+            state={state}
+            today={today}
+            actions={actions}
+            amountRef={amountRef}
+            onSaved={(expense) => {
+              pendingAnnouncement.current = expense;
+              setOpen(false);
+            }}
+          />
+        </Dialog>
+      ) : null}
     </>
   );
 }

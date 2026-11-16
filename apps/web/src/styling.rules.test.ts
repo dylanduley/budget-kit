@@ -135,11 +135,12 @@ describe('alerts and live regions', () => {
     expect(found).toBe(6);
   });
 
-  it('there is no role="status" and exactly one aria-live (the month label)', () => {
+  it('app code writes no role="status", aria-atomic or aria-relevant, and exactly one raw aria-live (the month label)', () => {
     const liveMatches: string[] = [];
     for (const file of codeFiles) {
       const code = stripComments(read(file));
       expect(code, rel(file)).not.toMatch(/role\s*[=:]\s*\{?\s*['"]status['"]/);
+      expect(code, rel(file)).not.toMatch(/aria-atomic|ariaAtomic|aria-relevant|ariaRelevant/);
       for (const match of code.matchAll(/aria-live|ariaLive/g)) {
         const at = match.index ?? 0;
         const tagStart = code.lastIndexOf('<', at);
@@ -150,6 +151,20 @@ describe('alerts and live regions', () => {
       }
     }
     expect(liveMatches).toEqual(['features/month/MonthSwitcher.tsx']);
+  });
+
+  it('<StatusMessage> is used exactly once in each of the four announcing files and nowhere else', () => {
+    const counts: Record<string, number> = {};
+    for (const file of codeFiles) {
+      const count = Array.from(stripComments(read(file)).matchAll(/<StatusMessage\b/g)).length;
+      if (count > 0) counts[rel(file)] = count;
+    }
+    expect(counts).toEqual({
+      'features/expenses/AddExpense.tsx': 1,
+      'features/expenses/ExpenseList.tsx': 1,
+      'features/plan/CategoriesCard.tsx': 1,
+      'features/shell/AppShell.tsx': 1,
+    });
   });
 });
 
