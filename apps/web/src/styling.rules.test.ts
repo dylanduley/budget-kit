@@ -5,6 +5,8 @@ import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { SCENARIO } from '@/test/fixtures';
+import { STORAGE_KEY } from '@/state/storage';
+import { createMemoryStorage } from '@/test/memoryStorage';
 import { renderApp } from '@/test/renderApp';
 
 const SRC = join(import.meta.dirname);
@@ -135,11 +137,12 @@ describe('alerts and live regions', () => {
     expect(found).toBe(6);
   });
 
-  it('there is no role="status" and exactly one aria-live (the month label)', () => {
+  it('app code writes no role="status", aria-atomic or aria-relevant, and exactly one raw aria-live (the month label)', () => {
     const liveMatches: string[] = [];
     for (const file of codeFiles) {
       const code = stripComments(read(file));
       expect(code, rel(file)).not.toMatch(/role\s*[=:]\s*\{?\s*['"]status['"]/);
+      expect(code, rel(file)).not.toMatch(/aria-atomic|ariaAtomic|aria-relevant|ariaRelevant/);
       for (const match of code.matchAll(/aria-live|ariaLive/g)) {
         const at = match.index ?? 0;
         const tagStart = code.lastIndexOf('<', at);
@@ -150,6 +153,46 @@ describe('alerts and live regions', () => {
       }
     }
     expect(liveMatches).toEqual(['features/month/MonthSwitcher.tsx']);
+  });
+
+  it('<StatusMessage> is used exactly once in each of the four announcing files and nowhere else', () => {
+    const counts: Record<string, number> = {};
+    for (const file of codeFiles) {
+      const count = Array.from(stripComments(read(file)).matchAll(/<StatusMessage\b/g)).length;
+      if (count > 0) counts[rel(file)] = count;
+    }
+    expect(counts).toEqual({
+      'features/expenses/AddExpense.tsx': 1,
+      'features/expenses/ExpenseList.tsx': 1,
+      'features/plan/CategoriesCard.tsx': 1,
+      'features/shell/AppShell.tsx': 1,
+    });
+  });
+
+  it('every live region on the page is a library StatusMessage or the month label', () => {
+    const table = [
+      { path: '/', messages: 1, labels: 1 },
+      { path: '/spending', messages: 2, labels: 1 },
+      { path: '/plan', messages: 2, labels: 1 },
+      { path: '/history', messages: 1, labels: 0 },
+    ];
+    for (const { path, messages, labels } of table) {
+      for (const options of [{ state: SCENARIO }, { storage: createMemoryStorage({ [STORAGE_KEY]: 'not json' }) }]) {
+        const view = renderApp({ ...options, path });
+        const live = Array.from(document.querySelectorAll('[role="status"], [aria-live]'));
+        const library = live.filter((el) => el.getAttribute('data-part') === 'status-message');
+        const rest = live.filter((el) => el.getAttribute('data-part') !== 'status-message');
+        expect(library, path).toHaveLength(messages);
+        expect(rest, path).toHaveLength(labels);
+        for (const el of rest) {
+          expect(el.tagName, path).toBe('P');
+          expect(el.getAttribute('aria-live'), path).toBe('polite');
+          expect(screen.getAllByRole('banner').some((b) => b.contains(el)), path).toBe(true);
+          expect(el.textContent, path).toBe('November 2026');
+        }
+        view.unmount();
+      }
+    }
   });
 });
 

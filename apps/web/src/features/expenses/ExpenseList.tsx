@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { Button, Card, Table, type TableColumn } from '@budget-kit/ui';
+import { Button, Card, StatusMessage, Table, type TableColumn } from '@budget-kit/ui';
 
-import { categoryLabel, expensesForMonth, formatMonth, type Expense } from '@/lib/budget';
+import { categoryLabel, expensesForMonth, formatMonth, getTotals, type Expense } from '@/lib/budget';
 import { formatDate, formatMoney } from '@/lib/format';
 import { TOTAL_TOO_LARGE_MESSAGE, useBudget } from '@/state/BudgetProvider';
 
@@ -17,8 +17,11 @@ export function ExpenseList(): ReactElement | null {
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const emptyRef = useRef<HTMLParagraphElement>(null);
   const pendingFocus = useRef<FocusTarget | null>(null);
+  const pendingMessage = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState({ message: '', key: 0 });
   const expenses = budget.status === 'ready' ? budget.state.expenses : null;
+  const readyState = budget.status === 'ready' ? budget.state : null;
 
   useEffect(() => {
     const target = pendingFocus.current;
@@ -28,6 +31,16 @@ export function ExpenseList(): ReactElement | null {
     else buttonRefs.current.get(target)?.focus();
   }, [expenses]);
 
+  useEffect(() => {
+    const deleted = pendingMessage.current;
+    if (deleted === null || readyState === null) return;
+    pendingMessage.current = null;
+    const totals = getTotals(readyState);
+    const message = deleted + (totals.hasIncome ? ` Left to spend: ${formatMoney(totals.leftToSpendCents)}.` : '');
+    // Announce after focus has moved and the dialog has gone.
+    setAnnouncement((current) => ({ message, key: current.key + 1 }));
+  }, [readyState]);
+
   if (budget.status !== 'ready') return null;
   const { state, actions } = budget;
   const rows = expensesForMonth(state);
@@ -35,12 +48,17 @@ export function ExpenseList(): ReactElement | null {
   function handleDelete(id: string): void {
     const index = rows.findIndex((row) => row.id === id);
     const next = rows[index + 1] ?? rows[index - 1];
+    const gone = rows[index];
     try {
       actions.deleteExpense(id);
+      if (gone !== undefined) {
+        pendingMessage.current = `Expense deleted: ${formatMoney(gone.amountCents)} for ${categoryLabel(state, gone.categoryId)} on ${formatDate(gone.date)}.`;
+      }
       pendingFocus.current = next === undefined ? 'empty' : next.id;
       setError(null);
     } catch (caught) {
       pendingFocus.current = null;
+      pendingMessage.current = null;
       setError(
         caught instanceof RangeError && caught.message === TOTAL_TOO_LARGE_MESSAGE
           ? TOTAL_TOO_LARGE_MESSAGE
@@ -88,6 +106,7 @@ export function ExpenseList(): ReactElement | null {
           </p>
         }
       />
+      <StatusMessage visuallyHidden message={announcement.message} announceKey={announcement.key} />
       {state.categories.length === 0 ? <p>Add a category on the Plan page before adding expenses.</p> : null}
       {error !== null ? (
         <p role="alert" data-part="action-error">

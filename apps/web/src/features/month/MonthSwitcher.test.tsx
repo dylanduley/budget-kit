@@ -98,11 +98,15 @@ describe('MonthSwitcher: Previous month click', () => {
 });
 
 describe('MonthSwitcher: live region', () => {
-  it('the label has aria-live="polite", is the only live region, and its text changes in place', async () => {
+  it('the label has aria-live="polite", is the only raw live region, and its text changes in place', async () => {
     const { user } = renderApp({ book: BOOK });
     const el = label('November 2026');
     expect(el).toHaveAttribute('aria-live', 'polite');
-    expect(document.querySelectorAll('[aria-live], [role="status"]')).toHaveLength(1);
+    expect(
+      document.querySelectorAll(
+        '[aria-live]:not([data-part="status-message"]), [role="status"]:not([data-part="status-message"])',
+      ),
+    ).toHaveLength(1);
     await user.click(previous());
     expect(label('October 2026')).toBe(el);
     expect(el).toHaveAttribute('aria-live', 'polite');

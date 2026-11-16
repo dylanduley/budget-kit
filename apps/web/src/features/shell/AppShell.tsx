@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 
-import { NavBar } from '@budget-kit/ui';
+import { NavBar, StatusMessage } from '@budget-kit/ui';
 
 import { AddExpense } from '@/features/expenses/AddExpense';
 import { MonthSwitcher } from '@/features/month/MonthSwitcher';
@@ -22,6 +23,14 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
   const budget = useBudget();
   const pathname = usePathname();
   const ready = budget.status === 'ready';
+  const replaced = budget.status === 'ready' && budget.savedDataReplaced;
+  const [showReplaced, setShowReplaced] = useState(false);
+
+  useEffect(() => {
+    // Announce only after focus has moved and any dialog has gone.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowReplaced(replaced);
+  }, [replaced]);
 
   return (
     <>
@@ -38,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
         aria-busy={ready ? undefined : 'true'}
       >
         {budget.status === 'ready' && budget.loadStatus === 'invalid' ? (
-          <p>{budget.savedDataReplaced ? REPLACED_MESSAGE : INVALID_MESSAGE}</p>
+          <StatusMessage message={showReplaced ? REPLACED_MESSAGE : INVALID_MESSAGE} />
         ) : null}
         {budget.status === 'ready' && budget.loadStatus === 'unavailable' ? <p>{UNAVAILABLE_MESSAGE}</p> : null}
         {children}

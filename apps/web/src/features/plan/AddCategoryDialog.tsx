@@ -14,16 +14,18 @@ import { actionMessage } from './actionMessage';
 export interface AddCategoryDialogProps {
   open: boolean;
   onClose: () => void;
+  onAdded: (id: string) => void;
 }
 
 interface AddCategoryFormProps {
   formId: string;
   nameRef: RefObject<HTMLInputElement | null>;
   onClose: () => void;
+  onAdded: (id: string) => void;
 }
 
 // Mounted only while the dialog is open, so the fields are empty every time it opens.
-function AddCategoryForm({ formId, nameRef, onClose }: AddCategoryFormProps): ReactElement | null {
+function AddCategoryForm({ formId, nameRef, onClose, onAdded }: AddCategoryFormProps): ReactElement | null {
   const budget = useBudget();
   const [name, setName] = useState('');
   const [planned, setPlanned] = useState<number | null>(null);
@@ -49,14 +51,16 @@ function AddCategoryForm({ formId, nameRef, onClose }: AddCategoryFormProps): Re
       plannedRef.current?.focus();
       return;
     }
+    let id: string;
     try {
-      actions.addCategory({ name, plannedCents: planned ?? 0 });
+      id = actions.addCategory({ name, plannedCents: planned ?? 0 });
     } catch (error) {
       const message = actionMessage(error);
       if (message === TOTAL_TOO_LARGE_MESSAGE) setPlannedError(message);
       else setActionError(message);
       return;
     }
+    onAdded(id);
     onClose();
   }
 
@@ -96,7 +100,7 @@ function AddCategoryForm({ formId, nameRef, onClose }: AddCategoryFormProps): Re
   );
 }
 
-export function AddCategoryDialog({ open, onClose }: AddCategoryDialogProps): ReactElement | null {
+export function AddCategoryDialog({ open, onClose, onAdded }: AddCategoryDialogProps): ReactElement | null {
   const formId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -117,7 +121,7 @@ export function AddCategoryDialog({ open, onClose }: AddCategoryDialogProps): Re
         </>
       }
     >
-      <AddCategoryForm formId={formId} nameRef={nameRef} onClose={onClose} />
+      <AddCategoryForm formId={formId} nameRef={nameRef} onClose={onClose} onAdded={onAdded} />
     </Dialog>
   );
 }

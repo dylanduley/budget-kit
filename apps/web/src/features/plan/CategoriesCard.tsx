@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { Button, Card } from '@budget-kit/ui';
+import { Button, Card, StatusMessage } from '@budget-kit/ui';
 
+import { categoryLabel } from '@/lib/budget';
+import { formatMoney } from '@/lib/format';
 import { useBudget } from '@/state/BudgetProvider';
 
 import { AddCategoryDialog } from './AddCategoryDialog';
@@ -14,6 +16,8 @@ import { Suggestions } from './Suggestions';
 
 type PendingFocus = { kind: 'remove'; id: string | null } | { kind: 'planned'; id: string };
 
+type PendingAnnouncement = { kind: 'added'; id: string } | { kind: 'removed'; name: string };
+
 export function CategoriesCard(): ReactElement | null {
   const budget = useBudget();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -21,7 +25,10 @@ export function CategoriesCard(): ReactElement | null {
   const removeButtons = useRef(new Map<string, HTMLButtonElement>());
   const plannedFields = useRef(new Map<string, HTMLInputElement>());
   const pendingFocus = useRef<PendingFocus | null>(null);
+  const pendingAnnouncement = useRef<PendingAnnouncement | null>(null);
+  const [announcement, setAnnouncement] = useState({ message: '', key: 0 });
   const categories = budget.status === 'ready' ? budget.state.categories : null;
+  const readyState = budget.status === 'ready' ? budget.state : null;
 
   useEffect(() => {
     const target = pendingFocus.current;
@@ -34,6 +41,23 @@ export function CategoriesCard(): ReactElement | null {
     const button = target.id === null ? undefined : removeButtons.current.get(target.id);
     (button ?? addButton.current)?.focus();
   }, [categories]);
+
+  useEffect(() => {
+    const pending = pendingAnnouncement.current;
+    if (pending === null || readyState === null) return;
+    pendingAnnouncement.current = null;
+    let message: string;
+    if (pending.kind === 'removed') {
+      message = `Category removed: ${pending.name}.`;
+    } else {
+      const added = readyState.categories.find((category) => category.id === pending.id);
+      if (added === undefined) return;
+      message = `Category added: ${categoryLabel(readyState, added.id)}.`;
+      if (added.plannedCents > 0) message += ` Planned: ${formatMoney(added.plannedCents)}.`;
+    }
+    // Announce after focus has moved and the dialog has gone.
+    setAnnouncement((current) => ({ message, key: current.key + 1 }));
+  }, [readyState]);
 
   if (budget.status !== 'ready') return null;
   const { state, actions } = budget;
@@ -51,12 +75,14 @@ export function CategoriesCard(): ReactElement | null {
   function handleRemove(id: string): string | null {
     const index = state.categories.findIndex((category) => category.id === id);
     const successor = state.categories[index + 1] ?? state.categories[index - 1];
+    const name = categoryLabel(state, id);
     try {
       actions.removeCategory(id);
     } catch (error) {
       return actionMessage(error);
     }
     pendingFocus.current = { kind: 'remove', id: successor?.id ?? null };
+    pendingAnnouncement.current = { kind: 'removed', name };
     return null;
   }
 
@@ -96,10 +122,20 @@ export function CategoriesCard(): ReactElement | null {
           actions={actions}
           onAdded={(id) => {
             pendingFocus.current = { kind: 'planned', id };
+            pendingAnnouncement.current = { kind: 'added', id };
           }}
         />
+        <StatusMessage visuallyHidden message={announcement.message} announceKey={announcement.key} />
       </div>
-      <AddCategoryDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      {dialogOpen ? (
+        <AddCategoryDialog
+          open
+          onClose={() => setDialogOpen(false)}
+          onAdded={(id) => {
+            pendingAnnouncement.current = { kind: 'added', id };
+          }}
+        />
+      ) : null}
     </Card>
   );
 }

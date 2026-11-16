@@ -563,7 +563,13 @@ describe('accessibility', () => {
     renderApp({ state: SCENARIO, path: '/spending' });
     await screen.findByRole('table');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    const regions = screen.getAllByRole('status');
+    expect(regions).toHaveLength(2);
+    for (const region of regions) {
+      expect(region).toHaveAttribute('data-part', 'status-message');
+      expect(region).toHaveAttribute('data-visually-hidden', 'true');
+      expect(region).toHaveTextContent('');
+    }
   });
 });
 
