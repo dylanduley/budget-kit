@@ -55,7 +55,7 @@ export function CategoriesCard(): ReactElement | null {
       message = `Category added: ${categoryLabel(readyState, added.id)}.`;
       if (added.plannedCents > 0) message += ` Planned: ${formatMoney(added.plannedCents)}.`;
     }
-    // Announce only after focus has moved and any dialog has gone.
+    // Announce after focus has moved and the dialog has gone.
     setAnnouncement((current) => ({ message, key: current.key + 1 }));
   }, [readyState]);
 

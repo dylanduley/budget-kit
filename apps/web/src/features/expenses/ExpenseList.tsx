@@ -37,7 +37,7 @@ export function ExpenseList(): ReactElement | null {
     pendingMessage.current = null;
     const totals = getTotals(readyState);
     const message = deleted + (totals.hasIncome ? ` Left to spend: ${formatMoney(totals.leftToSpendCents)}.` : '');
-    // Announce only after focus has moved and any dialog has gone.
+    // Announce after focus has moved and the dialog has gone.
     setAnnouncement((current) => ({ message, key: current.key + 1 }));
   }, [readyState]);
 

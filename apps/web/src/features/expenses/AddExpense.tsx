@@ -153,7 +153,7 @@ export function AddExpense(): ReactElement | null {
     const message =
       `Expense added: ${formatMoney(expense.amountCents)} for ${categoryLabel(readyState, expense.categoryId)} on ${formatDate(expense.date)}.` +
       (left.hasIncome ? ` Left to spend: ${formatMoney(left.leftToSpendCents)}.` : '');
-    // Announce only after focus has moved and any dialog has gone.
+    // Announce after focus has moved and the dialog has gone.
     setAnnouncement((current) => ({ message, key: current.key + 1 }));
   }, [open, readyState]);
 
