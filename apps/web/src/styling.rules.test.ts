@@ -294,8 +294,8 @@ describe('className values', () => {
       }
       expect(code, rel(file)).not.toMatch(/\bclass=|\bclassName\s*=\s*\{\s*`|\bclsx\(|\bcx\(/);
     }
-    // 32 `className=` attributes counted by grep over the non-test .tsx files.
-    expect(seen).toBe(32);
+    // 31 `className=` attributes counted by grep over the non-test .tsx files.
+    expect(seen).toBe(31);
   });
 
   it('the className classifier rejects what the conventions forbid', () => {

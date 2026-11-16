@@ -29,7 +29,7 @@ describe('MonthSwitcher: current month', () => {
     const banner = document.querySelector('header') as HTMLElement;
     const row = within(banner).getByText('November 2026').parentElement as HTMLElement;
     const order = Array.from(row.children).map((c) => c.textContent);
-    expect(order).toEqual(['Previous month', 'November 2026', 'Next month']);
+    expect(order).toEqual(['Previous', 'November 2026', 'Next']);
     expect(previous()).toBeEnabled();
     expect(next()).toBeDisabled();
     expect(screen.queryByText(/past month/)).not.toBeInTheDocument();

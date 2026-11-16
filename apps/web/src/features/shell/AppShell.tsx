@@ -25,15 +25,13 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
 
   return (
     <>
-      <header className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-6 sm:px-6">
+      <header className="mx-auto flex max-w-3xl flex-col gap-2 px-4 pt-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="font-semibold text-text">Budget Kit</p>
-          <NavBar label="Main" items={NAV_ITEMS} currentHref={pathname} linkComponent={Link} />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <MonthSwitcher />
           {ready ? <AddExpense /> : null}
         </div>
+        <NavBar label="Main" items={NAV_ITEMS} currentHref={pathname} linkComponent={Link} />
+        <MonthSwitcher />
       </header>
       <main
         className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6"

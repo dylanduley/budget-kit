@@ -512,7 +512,7 @@ describe('headings (populated SCENARIO)', () => {
 describe('DOM order', () => {
   const before = (a: Element, b: Element): boolean => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
-  it('the banner (name, Main nav, month switcher, Add expense) comes before main on every path', () => {
+  it('the banner (name, Add expense, Main nav, month switcher) comes before main on every path', () => {
     for (const path of ['/', '/spending', '/plan'] as const) {
       const view = renderApp({ state: SCENARIO, path });
       const banner = pageBanners()[0] as HTMLElement;
@@ -520,7 +520,7 @@ describe('DOM order', () => {
       const previous = within(banner).getByRole('button', { name: 'Previous month' });
       const add = within(banner).getByRole('button', { name: 'Add expense' });
       expect(before(links[3] as HTMLElement, previous), path).toBe(true);
-      expect(before(previous, add), path).toBe(true);
+      expect(before(add, links[0] as HTMLElement), path).toBe(true);
       expect(before(banner, screen.getByRole('main')), path).toBe(true);
       view.unmount();
     }

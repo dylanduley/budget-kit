@@ -36,10 +36,11 @@ export function MonthSwitcher(): ReactElement | null {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           ref={previousRef}
           variant="secondary"
+          aria-label="Previous month"
           disabled={previous === null}
           onClick={() => {
             if (previous === null) return;
@@ -47,7 +48,7 @@ export function MonthSwitcher(): ReactElement | null {
             viewMonth(previous);
           }}
         >
-          Previous month
+          Previous
         </Button>
         <p className="font-semibold text-text" aria-live="polite">
           {formatMonth(budget.viewedMonth)}
@@ -55,6 +56,7 @@ export function MonthSwitcher(): ReactElement | null {
         <Button
           ref={nextRef}
           variant="secondary"
+          aria-label="Next month"
           disabled={next === null}
           onClick={() => {
             if (next === null) return;
@@ -62,7 +64,7 @@ export function MonthSwitcher(): ReactElement | null {
             viewMonth(next);
           }}
         >
-          Next month
+          Next
         </Button>
       </div>
       {budget.viewedMonth < currentMonth ? (

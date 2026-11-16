@@ -132,8 +132,10 @@ describe('shell structure on every route', () => {
     expect(screen.getByRole('textbox', { name: 'Monthly income (USD)' })).toBeInTheDocument();
   });
 
-  it('Tab order is the four links, then Add expense', async () => {
+  it('Tab order is Add expense, then the four links', async () => {
     const { user } = renderApp({ state: SCENARIO });
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Add expense' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveFocus();
     await user.tab();
@@ -142,8 +144,6 @@ describe('shell structure on every route', () => {
     expect(screen.getByRole('link', { name: 'Plan' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('link', { name: 'History' })).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole('button', { name: 'Add expense' })).toHaveFocus();
   });
 });
 
