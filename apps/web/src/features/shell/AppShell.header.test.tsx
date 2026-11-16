@@ -17,8 +17,6 @@ const THREE: BudgetBook = { months: [SEPTEMBER, OCTOBER, SCENARIO] };
 function header(): HTMLElement {
   return document.querySelector('header') as HTMLElement;
 }
-const names = (els: Element[]): (string | null)[] => els.map((e) => e.textContent);
-
 describe('compact header: DOM order and containment', () => {
   it.each(['/', '/spending', '/plan'])(
     '%s: the header has three rows: [name + Add expense], NavBar, switcher',
@@ -67,9 +65,31 @@ describe('compact header: DOM order and containment', () => {
     expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument();
   });
 
-  it('seeded BOOK: past-month note stays inside the switcher row, still three header children', () => {
-    renderApp({ book: BOOK });
-    expect(header().children).toHaveLength(3);
+  it('past month: the note sits inside the third row and the header still has three children', async () => {
+    const { user } = renderApp({ book: BOOK });
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    const note = screen.getByText("You're looking at a past month. Changes are saved to October 2026.");
+    const rows = Array.from(header().children);
+    expect(rows).toHaveLength(3);
+    expect(rows[2]).toContainElement(note);
+  });
+
+  it('Add expense is not inside the NavBar or the switcher', () => {
+    renderApp({ state: SCENARIO });
+    const add = screen.getByRole('button', { name: 'Add expense' });
+    const switcher = screen.getByRole('button', { name: 'Previous month' }).closest('header > div:not(:first-child)');
+    expect(screen.getByRole('navigation', { name: 'Main' })).not.toContainElement(add);
+    expect(switcher).not.toBeNull();
+    expect(switcher).not.toContainElement(add);
+  });
+
+  it('exact layout classes: header, row 1 and the switcher button row', () => {
+    renderApp({ state: SCENARIO });
+    expect(header().className).toBe('mx-auto flex max-w-3xl flex-col gap-2 px-4 pt-4 sm:px-6');
+    expect(header().children[0]?.className).toBe('flex flex-wrap items-center justify-between gap-3');
+    expect(screen.getByRole('button', { name: 'Previous month' }).parentElement?.className).toBe(
+      'flex flex-wrap items-center gap-2',
+    );
   });
 });
 
@@ -80,8 +100,8 @@ describe('compact header: label in name', () => {
     const next = screen.getByRole('button', { name: 'Next month' });
     expect(previous.textContent).toBe('Previous');
     expect(next.textContent).toBe('Next');
-    expect(previous.getAttribute('aria-label')).toMatch(new RegExp(`^${previous.textContent}`));
-    expect(next.getAttribute('aria-label')).toMatch(new RegExp(`^${next.textContent}`));
+    expect(previous).toHaveAccessibleName(new RegExp(previous.textContent ?? '', 'i'));
+    expect(next).toHaveAccessibleName(new RegExp(next.textContent ?? '', 'i'));
     expect(screen.queryByRole('button', { name: 'Previous' })).not.toBeInTheDocument();
   });
 
@@ -93,15 +113,14 @@ describe('compact header: label in name', () => {
 });
 
 describe('compact header: Tab order', () => {
-  it('from History link: Previous month, then Next month, then main content', async () => {
-    const { user } = renderApp({ book: THREE });
+  it('seeded BOOK: from History, Tab goes to Previous month, and the next Tab skips the disabled Next month', async () => {
+    const { user } = renderApp({ book: BOOK });
     screen.getByRole('link', { name: 'History' }).focus();
     await user.tab();
     expect(screen.getByRole('button', { name: 'Previous month' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
-    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Next month' }));
-    expect(document.activeElement?.closest('header')).toBeNull();
+    expect(document.activeElement).toBe(document.body);
   });
 
   it('with both buttons enabled: History, Previous month, Next month (the month label is not a stop)', async () => {
@@ -139,7 +158,7 @@ describe('compact header: Tab order', () => {
     );
     const head = container.querySelector('header') as HTMLElement;
     const rows = Array.from(head.children);
-    expect(names([rows[0] as Element])).toEqual(['Budget Kit']);
+    expect(rows[0]?.textContent).toBe('Budget Kit');
     expect(rows[1]?.tagName).toBe('NAV');
     expect(rows).toHaveLength(2);
     expect(container.textContent).not.toContain('Add expense');
