@@ -25,7 +25,7 @@ See [../followups-plan.md](../followups-plan.md) for order, planner defaults and
 | 09 | [Invalid money text warns and is not saved](09-invalid-money-not-saved.md) (superseded by 26) | library 14 | F2 | `src/features/setup/MonthSetup.tsx`; one sentence in this README |
 | 10 | [Announce non-error changes with StatusMessage](10-status-announcements.md) (superseded by 27) | library 15, app 09 | F3 | `AddExpense.tsx`, `ExpenseList.tsx`, `MonthSetup.tsx`, `BudgetApp.tsx`, `styling.rules.test.ts`, four existing tests; two passages in this README |
 
-### Follow-ups after the redesign (planned, not built)
+### Follow-ups after the redesign (built and merged on redesign/pages: 26, 27, 28, 29)
 09 and 10 were written before the redesign (app tasks 20–25, `../redesign-plan.md`) and are replaced by 26 and 27. See [../followups-plan2.md](../followups-plan2.md) for order, planner defaults, risks and the existing tests that change.
 
 | # | Task | Depends on | Group | Shared files touched |

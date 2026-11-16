@@ -35,7 +35,7 @@ Uses `useBudget()` (`book`, `currentMonth`, `viewMonth`, `actions.deleteAllData`
 
 ## Behaviour
 - HistoryPage (ready): `<h1>History</h1>`, `<MonthsTable />`, `<DeleteAllData />`.
-- **MonthsTable**: `<Card title="Months" description="Every month you have used, newest first. Choose View to see a month's details.">` with `<Table caption="Months" captionHidden …>` over `monthSummaries(book, currentMonth)`:
+- **MonthsTable**: `<Card title="Your months" description="Every month you have used, newest first. Choose View to see a month's details.">` with `<Table caption="Months" captionHidden …>` over `monthSummaries(book, currentMonth)`. The card title is `Your months`, not `Months`, so the card region and the table region have different names (changed in app 25 QA, commit c6104ea; the caption stays `Months`):
   - `Month` (row header): `formatMonth(month)`, plus ` (this month)` when `month === currentMonth`;
   - `Income` (numeric): `hasIncome ? formatMoney(incomeCents) : 'Not set'`;
   - `Spent` (numeric): `formatMoney(spentCents)`;

@@ -11,18 +11,18 @@ The single long page becomes four pages behind a top navigation: **Overview**, *
 
 All four share one header (the banner landmark) and one `main`:
 
-- **Header, every page**: the site name `Budget Kit` (plain text, not a heading); the navigation (`Overview`, `Spending`, `Plan`, `History`; the current page marked with `aria-current="page"`); then, once the budget has loaded, the **month switcher** (not on History, see below) and the **`Add expense`** button (only when the viewed month has at least one category).
+- **Header, every page**, in this order: the site name `Budget Kit` (plain text, not a heading) with the **`Add expense`** button (shown once the budget has loaded, and only when the viewed month has at least one category); then the navigation (`Overview`, `Spending`, `Plan`, `History`; the current page marked with `aria-current="page"`); then the **month switcher** (not on History, see below): `Previous` and `Next` buttons whose accessible names are `Previous month` and `Next month`, the month between them, and the month notes under it. `Add expense` is first in the Tab order (decision 19).
 - **`main`, every page**: the saved-data messages (unchanged wording, see Copy), then the page: an `h1` with the page name, then the page's sections (library `Card`s, `h2` titles).
 - **Loading** (server render and first client render): header with site name and navigation only; `main` has `aria-busy="true"` and holds the page's `h1` and `Loading your budget…`.
 
 | Page | Route | `h1` | Sections, in order |
 |---|---|---|---|
 | Overview | `/` | `Overview` | first-run line (first run only); `Summary` card (Income, Planned, Spent, Left to spend, Unplanned money: today's dashboard stats); `Spending by category` card (today's progress bars, `Over budget` and `No plan set` badges, removed-categories line) |
-| Spending | `/spending` | `Spending` | `Expenses in {Month YYYY}` card: the expense table, newest first, with Delete (today's list) |
+| Spending | `/spending` | `Spending` | `Expenses in {Month YYYY}` card: the expense table (hidden caption `Expense table for {Month YYYY}`), newest first, with Delete (today's list) |
 | Plan | `/plan` | `Plan` | `Income` card (`Monthly income (USD)`); `Categories` card (one row per category: name, planned amount, Remove; `Add category` button in the card header; suggestions) |
-| History | `/history` | `History` | `Months` card: a table, one row per month, newest first: Month, Income, Spent, Left, `View`; `Start over` card: `Delete all data` |
+| History | `/history` | `History` | `Your months` card: a table, one row per month, newest first: Month, Income, Spent, Left, `View`; `Start over` card: `Delete all data` |
 
-Page titles (browser tab, and what Next.js's route announcer reads on navigation): `Overview · Budget Kit`, `Spending · Budget Kit`, `Plan · Budget Kit`, `History · Budget Kit`.
+Page titles (browser tab, and what Next.js's route announcer reads on navigation): `Overview · Budget Kit`, `Spending · Budget Kit`, `Plan · Budget Kit`, `History · Budget Kit`. The root layout's title template is `%s · Budget Kit`; the Overview page sets `title: { absolute: 'Overview · Budget Kit' }` so the template is not applied on top of its own suffix.
 
 ### Overview
 Answers "how much do I have left this month?" with no controls of its own. Identical to today's `Summary` and `Spending by category` cards, with prompts that point to the Plan page instead of "below".
@@ -40,7 +40,7 @@ Where the person sets and adjusts the month.
 
 ### History
 - Intro: `Every month you have used, newest first. Choose View to see a month's details.`
-- Table caption `Months` (hidden; the card title says it), columns `Month` (row header), `Income`, `Spent`, `Left`, `Actions`. One row per month in the month list (below), newest first. The current month's cell reads `November 2026 (this month)`. Income and Left show `Not set` when the month's income is 0 (as the dashboard does). Left is income minus spent; a negative value shows with a minus sign (`-$494.82`) so it is not colour-only.
+- Table caption `Months` (hidden). The card is titled `Your months`, not `Months`, so the card region and the table region have different names (axe's landmark-unique rule; app task 25). Columns `Month` (row header), `Income`, `Spent`, `Left`, `Actions`. One row per month in the month list (below), newest first. The current month's cell reads `November 2026 (this month)`. Income and Left show `Not set` when the month's income is 0 (as the dashboard does). Left is income minus spent; a negative value shows with a minus sign (`-$494.82`) so it is not colour-only.
 - `View` (aria-label `View {Month YYYY}`) makes that month the viewed month and goes to Overview, which shows its full details (stats and spending by category). That is how past details are viewed; there is no separate history detail page.
 - `Start over` card: description `Delete every month saved in this browser and begin again.`, button `Delete all data` (secondary). It opens `Delete all data?`: `This deletes the income, categories and expenses of every month saved in this browser. You can't undo this.` with `Cancel` (initial focus) and `Delete all data` (danger). After confirming, the data is gone, the viewed month is the current month in its first-run state, and focus moves to `All data deleted. You're starting fresh with {Month YYYY}.` (a focusable paragraph in the card).
 
@@ -73,7 +73,7 @@ No stored data: the viewed month is the current month, empty. Overview shows `We
 
 ## Copy (new or changed strings; all others unchanged)
 - Navigation label `Main`; items `Overview`, `Spending`, `Plan`, `History`.
-- Switcher buttons `Previous month`, `Next month`; month label `{Month YYYY}`.
+- Switcher buttons: visible text `Previous` and `Next`, accessible names `Previous month` and `Next month` (`aria-label`); month label `{Month YYYY}`.
 - `New month. Your income and categories were copied from {Month YYYY}. Change them on the Plan page.`
 - `You're looking at a past month. Changes are saved to {Month YYYY}.`
 - `Welcome. Start on the Plan page: enter your monthly income and add the categories you spend on.` (replaces `Start by entering your monthly income and what you plan to spend in each category.`)
@@ -101,9 +101,10 @@ Each with the alternative rejected and why.
 13. **Add category moves into a dialog**, the same pattern as Add expense, and the planned amount becomes optional. Rejected: the inline form, whose fields looked like one more category row.
 14. **Remove is a `ghost` `md` Button.** The cause of the lead's observation is in the app, not the library: Remove used `size="sm"` (32px) beside 40px fields, and the `secondary` variant (white with a grey border) looks like a field. Library Button `md`, TextField and Select are all 40px already (task 11); library task 21 makes that a tested contract so it cannot drift.
 15. **The month switcher is composed in the app** from two library Buttons and text; only the navigation is a new library component (a nav landmark and current-page marking are reusable and need their own styling). Rejected: a library MonthSwitcher (month logic belongs to the app; layout is plain flex).
-16. **One app-level live region**: the switcher's month label is `aria-live="polite"`, so a screen reader hears the new month after Previous/Next. This is the only exception to "no `aria-live` in app code".
+16. **Live regions**: the switcher's month label is the one raw `aria-live="polite"` in app code, so a screen reader hears the new month after Previous/Next. Other non-error changes are announced through the library's `StatusMessage` (app task 27), one region per owner: `AppShell` (saved data replaced), `AddExpense` (expense added), `ExpenseList` (expense deleted) and `CategoriesCard` (category added or removed). Rejected: one app-wide announcer (follow-up plan 2, decision 3). Error messages are not announced this way; they stay on the field or in the one action-error paragraph.
 17. **History shows Income, Spent and Left only.** Details, including the spending breakdown by category, come from `View` → Overview. Rejected: a per-category breakdown inside History (YNAB-style reports), which would duplicate Overview.
 18. **Delete all data lives on History** (it is about every month); after it, focus goes to a confirmation paragraph, as today's rollover reset does.
+19. **Add expense is first in the header's Tab order**, before the navigation and the switcher. Its button shares the first row with the site name, so the header is three rows of controls on a phone (app task 29). This changes the order first written in this spec, which put Add expense after the switcher. It is a deliberate decision.
 
 ### Taken from the YNAB inspiration, and what was not
 - Taken: plain tab names matching what you do (Spending, Plan, History); a quick Add expense reachable from every page; month-by-month planning with a look back (History); a plain name for money not yet given a job (we keep `Unplanned money`, already plain).

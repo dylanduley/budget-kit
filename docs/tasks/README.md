@@ -20,7 +20,7 @@ Plan for `docs/specs/components.md`. One file per task; each is self-contained f
 
 All paths are under `packages/ui/`. Every component task also creates its own folder `src/<Name>/`, which no other task writes to.
 
-### Follow-ups (planned, not built)
+### Follow-ups (built and merged on redesign/pages: 14, 15)
 See [followups-plan.md](followups-plan.md) for order, planner defaults and risks.
 
 | # | Task | Depends on | Group | Shared files touched |
@@ -104,4 +104,4 @@ Each has the assumption the tasks currently use. The first five affect several t
 15. **Table** is wrapped in a focusable scroll region so it works on a phone, which adds one tab stop per table. Assumed acceptable. Sorting and pagination are not planned.
 16. **Stories for Card and Table use a plain native `<button>`** in their action slots, because they run in parallel with Button. Assumed a follow-up (docs-writer) swaps in `Button` after group A merges.
 17. **Fixed English strings** in components: `Close`, `Good:`, `Bad:`, `over by`, `Nothing to show yet.`, and the MoneyField error messages. Only `closeLabel` and `emptyState` are overridable. Assumed English-only is fine.
-18. **Outside this plan, noticed while reading the scaffold**: `docs/workflow.md` mentions a typecheck hook and CI, but the repo has no `.claude/` or `.github/` directory. Not planned here.
+18. **Outside this plan, noticed while reading the scaffold**: `docs/workflow.md` mentions a typecheck hook and CI, but the repo has no `.github/` directory. (`.claude/agents/` exists now, with the agent definitions.) Not planned here.

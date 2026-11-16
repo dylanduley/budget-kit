@@ -19,6 +19,8 @@ const meta = {
           'A navigation landmark with a row of links between pages. The current page is marked with `aria-current="page"` and shown with a bottom border and bolder text, so it does not rely on colour.',
           '',
           'Pass your router\'s link as `linkComponent` (for example Next.js `Link`); the default is a plain `<a>`. `currentHref` is matched exactly against each `href`.',
+          '',
+          '**Accessibility**: the `nav` landmark is named by `label`. Each link is a normal Tab stop, and Enter follows it. The current link has `aria-current="page"`, which screen readers announce as the current page.',
         ].join('\n'),
       },
     },
@@ -53,7 +55,7 @@ export const Narrow: Story = {
 
 export const LongLabel: Story = {
   parameters: {
-    docs: { description: { story: 'A 60-character unbroken label wraps inside its item. %s' } },
+    docs: { description: { story: 'A 60-character unbroken label wraps inside its item.' } },
   },
   args: {
     items: [

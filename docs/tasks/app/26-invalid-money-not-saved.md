@@ -27,7 +27,7 @@ Why: the income and planned fields save on every keystroke and call the action w
 - `apps/web/src/features/plan/CategoryRow.tsx`: `handlePlannedChange` and `validateOn="change"` on the planned MoneyField; nothing else (names, Remove and their errors unchanged)
 - `apps/web/src/features/plan/AddCategoryDialog.tsx`: the `Planned (USD)` MoneyField (`validateOn="change"`, a ref, an "invalid" flag from the parse result) and the submit check; nothing else (props, Name field, actions, copy unchanged)
 - `docs/tasks/app/README.md`: the one sentence under Behaviour, "Docs"
-- QA: `apps/web/src/features/plan/PlanPage.test.tsx` (add a new `describe` block at the end of the file; existing tests must still pass unedited)
+- QA: `apps/web/src/features/plan/PlanPage.test.tsx` (add a new `describe` block at the end of the file. Four existing tests encode the old behaviour, where invalid text stored 0, and are rewritten: `invalid 12.345 shows a field error on blur and 0 is stored`, `total too large is shown on the income field; generic for other errors; clears on next edit`, `a total-too-large error on Planned clears when Planned is edited, and a later success closes the dialog`, and `planned edit failing: total too large and generic land on that row planned field only`. All other existing tests must still pass unedited)
 - Read-only: `features/expenses/AddExpense.tsx`, `features/expenses/expenseForm.ts` (must not change), `features/plan/CategoriesCard.tsx`, `Suggestions.tsx`, `actionMessage.ts`, everything in `lib/`, `state/`, `test/`, and `packages/ui/**`
 
 ## API / Props
@@ -115,7 +115,7 @@ Add category dialog:
 
 Unchanged parts:
 - [ ] AddExpense unchanged: `git diff --stat main` (the branch base) shows no change to `features/expenses/AddExpense.tsx` or `features/expenses/expenseForm.ts`, and `AddExpense.test.tsx` and `expenseForm.test.ts` pass without edits (including `amount "abc": dialog stays open, error shown, nothing stored`).
-- [ ] Every existing test in `PlanPage.test.tsx` passes unedited (QA only appends a new `describe` block).
+- [ ] Every existing test in `PlanPage.test.tsx` passes unedited except the four rewritten under Files (QA commit daa1112 rewrote them because they asserted that invalid text stored 0). QA otherwise only appends a new `describe` block.
 - [ ] The README sentence is replaced exactly as under Docs (grep for `invalid text is not saved and shows the library error at once (app task 26)`; the old text `empty or invalid income/planned stores 0` is gone).
 
 Blanket:

@@ -28,7 +28,7 @@ Split the one page into four Next.js routes (Overview `/`, Spending `/spending`,
 
 ## Files
 - `apps/web/src/app/layout.tsx`: the wrapper above; `metadata = { title: { default: 'Budget Kit', template: '%s · Budget Kit' }, description: 'A calm monthly budget planner.' }`; still no `'use client'`
-- `apps/web/src/app/page.tsx` (Overview), `app/spending/page.tsx`, `app/plan/page.tsx`, `app/history/page.tsx`: each `export const metadata = { title: 'Overview' }` (`Spending`, `Plan`, `History`) and a default export rendering the matching page component; nothing else
+- `apps/web/src/app/page.tsx` (Overview), `app/spending/page.tsx`, `app/plan/page.tsx`, `app/history/page.tsx`: each `export const metadata = { title: 'Spending' }` (`Plan`, `History`) and a default export rendering the matching page component; nothing else. The Overview page is the exception: `export const metadata = { title: { absolute: 'Overview · Budget Kit' } }`, because the template would otherwise add the suffix to its own title (changed in app 21 commit 9600c6a)
 - `apps/web/src/features/shell/AppShell.tsx` (`'use client';`)
 - `apps/web/src/features/shell/navItems.ts` (no directive): `NAV_ITEMS`
 - `apps/web/src/features/overview/OverviewPage.tsx`, `features/spending/SpendingPage.tsx`, `features/plan/PlanPage.tsx`, `features/history/HistoryPage.tsx` (each `'use client';`)
@@ -93,12 +93,12 @@ export function renderApp(options: RenderWithBudgetOptions & {
 
 ### Copy changes in today's screens
 - Dashboard: the `Not set` prompts read `Enter your monthly income on the Plan page`; the empty categories text reads `No categories yet. Add them on the Plan page.`
-- ExpenseList: Card title `Expenses in {formatMonth(state.month)}` (description `Newest first.` unchanged; table caption unchanged); empty state `No expenses in {formatMonth(state.month)}.`; when `state.categories.length === 0`, a `<p>Add a category on the Plan page before adding expenses.</p>` after the table.
+- ExpenseList: Card title `Expenses in {formatMonth(state.month)}` (description `Newest first.` unchanged). The table caption changes to `Expense table for {formatMonth(state.month)}` (hidden). It was `Expenses in {…}`, the same text as the card title, so the card and the table region had the same name; the caption now differs from the card title. Empty state `No expenses in {formatMonth(state.month)}.`; when `state.categories.length === 0`, a `<p>Add a category on the Plan page before adding expenses.</p>` after the table.
 - AddExpense: returns `null` when there are no categories (the sentence moves to ExpenseList).
 
 ## Acceptance criteria
 Routes and layout (`app/routes.test.ts`, reading modules and source):
-- [ ] `layout.tsx`, `page.tsx`, `spending/page.tsx`, `plan/page.tsx`, `history/page.tsx` have no `'use client'`; their `metadata.title` values are `{ default: 'Budget Kit', template: '%s · Budget Kit' }`, `'Overview'`, `'Spending'`, `'Plan'`, `'History'`; `layout.tsx`'s source has `<html lang="en">` and renders `BudgetProvider` around `AppShell` around `children`.
+- [ ] `layout.tsx`, `page.tsx`, `spending/page.tsx`, `plan/page.tsx`, `history/page.tsx` have no `'use client'`; their `metadata.title` values are `{ default: 'Budget Kit', template: '%s · Budget Kit' }`, `{ absolute: 'Overview · Budget Kit' }` (page.tsx), `'Spending'`, `'Plan'`, `'History'`; `layout.tsx`'s source has `<html lang="en">` and renders `BudgetProvider` around `AppShell` around `children`.
 - [ ] `features/BudgetApp.tsx` no longer exists; `AppShell.tsx` and every `*Page.tsx` start with `'use client';`.
 
 Shell (`AppShell.test.tsx`, `renderApp`):

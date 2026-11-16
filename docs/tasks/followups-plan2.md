@@ -38,7 +38,7 @@ All app paths are under `apps/web/src/`. Numbers continue after the redesign's a
 | `features/expenses/AddExpense.tsx`, `ExpenseList.tsx` | 27 only | 29 must not edit AddExpense (its `self-start` stays); 26 must not edit either. |
 | `state/storage.ts`, `state/BudgetProvider.tsx` | 28 only | |
 | `styling.rules.test.ts` | 29 (`className values` count), 27 (`alerts and live regions` block) | Each edits only its describe block. |
-| `features/plan/PlanPage.test.tsx` | 26, then 27 | Each appends one new `describe` block at the end; no edits to existing tests. |
+| `features/plan/PlanPage.test.tsx` | 26, then 27 | Each appends one new `describe` block at the end. 26 also rewrites four existing tests (see the table below); 27 changes none. |
 | `features/month/MonthSwitcher.test.tsx` | 29 (first test's `order`), then 27 (live-region test) | Different tests. |
 | `features/shell/AppShell.test.tsx`, `App.a11y.test.tsx` | 29 | 27 puts its whole-app tests in the new `App.announcements.test.tsx`. |
 | `features/expenses/*.test.tsx` | 27 | |
@@ -61,8 +61,12 @@ All app paths are under `apps/web/src/`. Numbers continue after the redesign's a
 | 27 | `features/expenses/ExpenseList.test.tsx` | `the Spending page renders the list and still has no other alerts/live regions from it` | `queryByRole('status')` absent → exactly two library regions, hidden and empty |
 | 27 | `styling.rules.test.ts` | `there is no role="status" and exactly one aria-live (the month label)` | renamed; also bans `aria-atomic`/`aria-relevant`; plus two new tests |
 | 27 | `features/expenses/AddExpense.test.tsx` | `AddExpense.tsx displays no money text (…)` | title only (assertion unchanged) |
+| 26 | `features/plan/PlanPage.test.tsx` | `invalid 12.345 shows a field error on blur and 0 is stored` | renamed and rewritten: the last valid amount (1234) is kept and the error shows before blur, not 0 (QA commit daa1112) |
+| 26 | `features/plan/PlanPage.test.tsx` | `total too large is shown on the income field; generic for other errors; clears on next edit` | typed text replaced with the `replaceWith` helper (select all, then type) |
+| 26 | `features/plan/PlanPage.test.tsx` | `a total-too-large error on Planned clears when Planned is edited, and a later success closes the dialog` | typed text replaced with `replaceWith` |
+| 26 | `features/plan/PlanPage.test.tsx` | `planned edit failing: total too large and generic land on that row planned field only` | typed text replaced with `replaceWith` |
 
-26 changes no existing test (it only appends). Each task lists the tests it checked and expects to pass unedited; QA reports any other test that needed a change.
+Each task lists the tests it checked and expects to pass unedited, except the rows above; QA reports any other test that needed a change.
 
 ## Decided by the planner (lead may revise later)
 Each is also under Assumptions in its task.

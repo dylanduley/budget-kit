@@ -47,7 +47,7 @@ No new behaviour. States to cover (each through `renderApp`): on every path, loa
 ### Accessibility (`App.a11y.test.tsx`)
 - [ ] `expectNoAxeViolations()` (all rules except `color-contrast`, including `region`, `landmark-*`, `heading-order`, `page-has-heading-one`) passes on `document.body` in every state under Behaviour.
 - [ ] Every path has exactly one `banner`, one `navigation` named `Main`, one `main`, one `h1`; every visible text node outside an open dialog is inside `banner` or `main`.
-- [ ] Heading order per page (populated): `/`: h1 `Overview`, h2 `Summary`, `Spending by category`; `/spending`: h1 `Spending`, h2 `Expenses in November 2026`; `/plan`: h1 `Plan`, h2 `Income`, `Categories` (h3 `Suggestions` only when shown); `/history`: h1 `History`, h2 `Months`, `Start over`.
+- [ ] Heading order per page (populated): `/`: h1 `Overview`, h2 `Summary`, `Spending by category`; `/spending`: h1 `Spending`, h2 `Expenses in November 2026`; `/plan`: h1 `Plan`, h2 `Income`, `Categories` (h3 `Suggestions` only when shown); `/history`: h1 `History`, h2 `Your months`, `Start over`.
 - [ ] `aria-current="page"` is on exactly one nav link on every path, the one for that path.
 
 ### Styling and structure (`styling.rules.test.ts`)
@@ -62,7 +62,7 @@ No new behaviour. States to cover (each through `renderApp`): on every path, loa
 - axe **with `color-contrast`** in a real browser (inject `node_modules/axe-core/axe.min.js`, run `axe.run()`) on every page in the populated, first-run, past-month and dialog-open states: zero violations.
 - 375×812: every page single column, no horizontal page scroll; header wraps; Plan rows stack; tables scroll inside their regions; dialogs fit. Note how far a new user scrolls on Plan to reach the suggestions (report).
 - 1280: Plan rows one line with `Remove` level with the fields and visibly a button.
-- Keyboard: Tab order banner (nav, switcher, Add expense) then the page; focus ring always visible; after each dialog closes focus is on its trigger (or the documented confirmation paragraph).
+- Keyboard: Tab order banner (Add expense, nav, switcher) then the page; focus ring always visible; after each dialog closes focus is on its trigger (or the documented confirmation paragraph).
 - Screen reader: page change announced; month change announced; over-budget, `No plan set`, `Not set` and negative Left understandable without colour; every money label ends `(USD)`.
 - Real migration: with data saved by the pre-redesign app in the same browser profile, the redesigned app shows it unchanged.
 - No hydration warning in the console on a direct load of each route; no `Loading your budget…` flash on client navigation.
