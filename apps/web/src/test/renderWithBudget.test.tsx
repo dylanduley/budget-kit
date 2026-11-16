@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type BudgetState, createInitialState } from '@/lib/budget';
 import { useBudget } from '@/state/BudgetProvider';
-import { STORAGE_KEY, serializeBudget } from '@/state/storage';
+import { STORAGE_KEY, serializeBook } from '@/state/storage';
 import { SCENARIO } from './fixtures';
 import { createMemoryStorage } from './memoryStorage';
 import { renderWithBudget } from './renderWithBudget';
@@ -28,7 +28,7 @@ describe('renderWithBudget storage', () => {
     await screen.findByTestId('income');
     expect(screen.getByTestId('income')).toHaveTextContent(String(SCENARIO.incomeCents));
     expect(view.storage.setItemCalls).toBe(0);
-    expect(view.storage.dump()[STORAGE_KEY]).toBe(serializeBudget(SCENARIO));
+    expect(view.storage.dump()[STORAGE_KEY]).toBe(serializeBook({ months: [SCENARIO] }));
     expect(view.readStored()).toEqual(SCENARIO);
   });
 
@@ -55,7 +55,7 @@ describe('renderWithBudget storage', () => {
     const view = renderWithBudget(<Show />, { storage, state: SCENARIO });
     expect(view.storage).toBe(storage);
     expect(storage.setItemCalls).toBe(0);
-    expect(storage.dump()[STORAGE_KEY]).toBe(serializeBudget(SCENARIO));
+    expect(storage.dump()[STORAGE_KEY]).toBe(serializeBook({ months: [SCENARIO] }));
     await screen.findByTestId('income');
     expect(screen.getByTestId('income')).toHaveTextContent(String(SCENARIO.incomeCents));
   });

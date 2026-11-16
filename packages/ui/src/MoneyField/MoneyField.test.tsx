@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as publicApi from '../index';
 import { MoneyField, type MoneyFieldProps } from './MoneyField';
 import * as stories from './MoneyField.stories';
+import { parseMoney, type MoneyParseResult } from './money';
 
 function Controlled({
   initial = null,
@@ -508,5 +509,269 @@ describe('MoneyField: error is announced (role="alert")', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(container.querySelector('#m-hint')).not.toHaveAttribute('role');
     expect(field()).toHaveAttribute('aria-describedby', 'm-error m-hint');
+  });
+});
+
+type Mode = 'blur' | 'change';
+const okR = (cents: number | null): MoneyParseResult => ({ ok: true, cents });
+const bad = (reason: 'invalid' | 'negative' | 'too-large'): MoneyParseResult => ({ ok: false, reason });
+const lastCall = (fn: ReturnType<typeof vi.fn>): unknown[] => fn.mock.calls[fn.mock.calls.length - 1] as unknown[];
+
+function Parent({
+  onCall,
+  initial = null,
+  ...rest
+}: Omit<MoneyFieldProps, 'value' | 'onChange'> & {
+  initial?: number | null;
+  onCall?: (cents: number | null, result: MoneyParseResult) => void;
+}): ReactElement {
+  const [value, setValue] = useState<number | null>(initial);
+  return (
+    <>
+      <MoneyField
+        {...rest}
+        value={value}
+        onChange={(cents, result) => {
+          onCall?.(cents, result);
+          if (result.ok) setValue(result.cents);
+        }}
+      />
+      <output data-testid="kept">{value === null ? 'null' : String(value)}</output>
+    </>
+  );
+}
+
+describe('MoneyField task 14: second argument of onChange', () => {
+  it('typing 12.5 calls onChange four times with (cents, result) pairs', async () => {
+    const onChange = vi.fn();
+    render(<MoneyField label="Income" value={null} onChange={onChange} />);
+    await userEvent.type(field(), '12.5');
+    expect(onChange).toHaveBeenCalledTimes(4);
+    expect(onChange).toHaveBeenNthCalledWith(1, 100, { ok: true, cents: 100 });
+    expect(onChange).toHaveBeenNthCalledWith(2, 1200, { ok: true, cents: 1200 });
+    expect(onChange).toHaveBeenNthCalledWith(3, 1200, { ok: true, cents: 1200 });
+    expect(onChange).toHaveBeenNthCalledWith(4, 1250, { ok: true, cents: 1250 });
+  });
+
+  it('invalid is distinguishable from empty: a then clear', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Parent label="Income" onCall={onChange} />);
+    await user.type(field(), 'a');
+    expect(onChange).toHaveBeenLastCalledWith(null, { ok: false, reason: 'invalid' });
+    await user.clear(field());
+    expect(onChange).toHaveBeenLastCalledWith(null, { ok: true, cents: null });
+  });
+
+  it('reason is passed through: negative, too-large, and allowNegative', async () => {
+    const user = userEvent.setup();
+    const a = vi.fn();
+    const { unmount } = render(<Parent label="Income" onCall={a} />);
+    await user.type(field(), '-5');
+    expect(a).toHaveBeenLastCalledWith(null, { ok: false, reason: 'negative' });
+    unmount();
+    const b = vi.fn();
+    const r2 = render(<Parent label="Income" onCall={b} />);
+    await user.type(field(), '1000000000000');
+    expect(b).toHaveBeenLastCalledWith(null, { ok: false, reason: 'too-large' });
+    r2.unmount();
+    const c = vi.fn();
+    render(<Parent label="Income" allowNegative onCall={c} />);
+    await user.type(field(), '-5');
+    expect(c).toHaveBeenLastCalledWith(-500, { ok: true, cents: -500 });
+  });
+
+  const rows: Array<[string, number | null, MoneyParseResult]> = [
+    ['1', 100, okR(100)],
+    ['1,', null, bad('invalid')],
+    ['1,2', null, bad('invalid')],
+    ['1,20', null, bad('invalid')],
+    ['1,200', 120000, okR(120000)],
+    ['a', null, bad('invalid')],
+    ['-', null, bad('invalid')],
+    ['-5', null, bad('negative')],
+    ['111111111111', 11111111111100, okR(11111111111100)],
+    ['1111111111111', null, bad('too-large')],
+  ];
+  it.each(rows)('examples table: typing %s ends with the listed cents and result', async (text, cents, result) => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Parent label="Income" onCall={onChange} />);
+    await user.type(field(), text);
+    expect(lastCall(onChange)).toStrictEqual([cents, result]);
+  });
+
+  it('examples table: clearing a field ends with (null, ok empty)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Parent label="Income" initial={500} onCall={onChange} />);
+    await user.clear(field());
+    expect(lastCall(onChange)).toStrictEqual([null, { ok: true, cents: null }]);
+  });
+
+  it.each<Mode>(['blur', 'change'])('never NaN or -0, and result equals parseMoney of the text (%s)', async (mode) => {
+    const user = userEvent.setup();
+    for (const text of ['abc', '12.345', '1,2,3', '.', '-', '1e3']) {
+      const onChange = vi.fn();
+      const { unmount } = render(<Parent label="Income" validateOn={mode} onCall={onChange} />);
+      await user.type(field(), text);
+      expect(onChange).toHaveBeenCalledTimes(text.length);
+      onChange.mock.calls.forEach((call: unknown[], i: number) => {
+        const [cents, result] = call as [number | null, MoneyParseResult];
+        expect(cents === null || Number.isSafeInteger(cents)).toBe(true);
+        expect(Object.is(cents, -0)).toBe(false);
+        expect(result).toStrictEqual(parseMoney(text.slice(0, i + 1)));
+      });
+      unmount();
+    }
+  });
+
+  it('a one-argument onChange (a useState setter) still works and Empty story behaviour holds', async () => {
+    const user = userEvent.setup();
+    function Setter(): ReactElement {
+      const [v, setV] = useState<number | null>(null);
+      return <MoneyField label="Income" value={v} onChange={setV} />;
+    }
+    render(<Setter />);
+    await user.type(field(), '12.5');
+    await user.tab();
+    expect(field()).toHaveValue('12.50');
+  });
+});
+
+describe('MoneyField task 14: validateOn', () => {
+  it.each<[string, Mode | undefined]>([['default', undefined], ['blur', 'blur']])(
+    'validateOn %s: no alert while focused, alert after Tab, onChange not called by blur',
+    async (_name, mode) => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(<Parent label="Income" validateOn={mode} onCall={onChange} />);
+      await user.type(field(), 'abc');
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(field()).not.toHaveAttribute('aria-invalid');
+      const calls = onChange.mock.calls.length;
+      await user.tab();
+      expect(screen.getByRole('alert')).toHaveTextContent(ERR_INVALID);
+      expect(onChange).toHaveBeenCalledTimes(calls);
+    },
+  );
+
+  it('validateOn change: a shows the alert before blur with aria-invalid and description', async () => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" validateOn="change" />);
+    await user.type(field(), 'a');
+    expect(field()).toHaveFocus();
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Enter an amount like 12\.50$/);
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(field()).toHaveAccessibleDescription(expect.stringContaining(ERR_INVALID));
+  });
+
+  it('validateOn change: -5 shows the negative message and a pasted 13 digits shows too large, before blur', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Parent label="Income" validateOn="change" />);
+    await user.type(field(), '-5');
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Amount can't be negative$/);
+    unmount();
+    render(<Parent label="Income" validateOn="change" />);
+    await user.click(field());
+    await user.paste('1000000000000');
+    expect(field()).toHaveFocus();
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Amount is too large$/);
+  });
+
+  it('validateOn change: from a, select all and type 5 clears the alert without blur', async () => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" validateOn="change" />);
+    await user.type(field(), 'a');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    await user.keyboard('{Control>}a{/Control}5');
+    expect(field()).toHaveValue('5');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(field()).not.toHaveAttribute('aria-invalid');
+    expect(field()).toHaveFocus();
+  });
+
+  it('validateOn change: 1, shows the alert and 1,200 removes it', async () => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" validateOn="change" />);
+    await user.type(field(), '1,');
+    expect(screen.getByRole('alert')).toHaveTextContent(ERR_INVALID);
+    await user.type(field(), '200');
+    expect(field()).toHaveValue('1,200');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('validateOn change: clearing the field removes the error', async () => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" validateOn="change" />);
+    await user.type(field(), 'a');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    await user.clear(field());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(field()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('validateOn blur (default): the error disappears as soon as the text parses ok, including empty', async () => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" />);
+    await user.type(field(), 'a');
+    await user.tab();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    await user.clear(field());
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('validateOn change blur: 12.5 then Tab shows 12.50', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Parent label="Income" validateOn="change" onCall={onChange} />);
+    await user.type(field(), '12.5');
+    const calls = onChange.mock.calls.length;
+    await user.tab();
+    expect(field()).toHaveValue('12.50');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(onChange).toHaveBeenCalledTimes(calls);
+  });
+
+  it('validateOn change blur: abc then Tab leaves abc and the error, onChange not called by blur', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Parent label="Income" validateOn="change" onCall={onChange} />);
+    await user.type(field(), 'abc');
+    const calls = onChange.mock.calls.length;
+    await user.tab();
+    expect(field()).toHaveValue('abc');
+    expect(screen.getByRole('alert')).toHaveTextContent(ERR_INVALID);
+    expect(onChange).toHaveBeenCalledTimes(calls);
+  });
+
+  it('parent that keeps its old value on invalid input keeps typed text and error', async () => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" initial={120000} validateOn="change" />);
+    expect(field()).toHaveValue('1,200.00');
+    await user.click(field());
+    await user.keyboard('{End}x');
+    expect(field()).toHaveValue('1,200.00x');
+    expect(screen.getByRole('alert')).toHaveTextContent(ERR_INVALID);
+    expect(screen.getByTestId('kept')).toHaveTextContent('120000');
+    await user.keyboard('{Backspace}');
+    expect(field()).toHaveValue('1,200.00');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByTestId('kept')).toHaveTextContent('120000');
+    await user.tab();
+    expect(field()).toHaveValue('1,200.00');
+  });
+
+  it.each<Mode>(['blur', 'change'])('parse error takes precedence over the error prop, one alert (%s)', async (mode) => {
+    const user = userEvent.setup();
+    render(<Parent label="Income" error="Income is required" validateOn={mode} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Income is required');
+    await user.type(field(), 'a');
+    if (mode === 'blur') await user.tab();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Enter an amount like 12\.50$/);
+    expect(screen.queryByText('Income is required')).toBeNull();
+    await user.clear(field());
+    expect(screen.getByRole('alert')).toHaveTextContent('Income is required');
   });
 });

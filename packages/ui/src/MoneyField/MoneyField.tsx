@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import type { ChangeEvent, FocusEvent, ReactElement } from 'react';
 import { TextField, type TextFieldProps } from '../TextField/TextField';
-import { formatCents, parseMoney } from './money';
+import { formatCents, parseMoney, type MoneyParseResult } from './money';
 
 export interface MoneyFieldProps
   extends Omit<TextFieldProps, 'type' | 'value' | 'defaultValue' | 'onChange' | 'prefix' | 'inputMode'> {
   value: number | null;
-  onChange: (cents: number | null) => void;
+  /** `result` is parseMoney(text, { allowNegative }) for the text just typed. */
+  onChange: (cents: number | null, result: MoneyParseResult) => void;
+  /** When the parse error appears. Default 'blur' (unchanged behaviour). */
+  validateOn?: 'blur' | 'change';
   allowNegative?: boolean;
   currencySymbol?: string;
 }
@@ -28,6 +31,7 @@ function textFor(value: number | null): string {
 export function MoneyField({
   value,
   onChange,
+  validateOn = 'blur',
   allowNegative = false,
   currencySymbol = '$',
   error,
@@ -55,8 +59,9 @@ export function MoneyField({
     const cents = result.ok ? result.cents : null;
     setText(nextText);
     if (result.ok) setParseError(null);
+    else if (validateOn === 'change') setParseError(result.reason);
     setLastEmitted(cents);
-    onChange(cents);
+    onChange(cents, result);
   }
 
   function handleBlur(event: FocusEvent<HTMLInputElement>): void {

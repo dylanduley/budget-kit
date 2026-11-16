@@ -5,7 +5,6 @@ import {
   type NewExpense,
   addCategory,
   addExpense,
-  createInitialState,
   deleteExpense,
   removeCategory,
   setIncome,
@@ -18,8 +17,7 @@ export type BudgetAction =
   | { type: 'updateCategory'; id: string; patch: CategoryPatch }
   | { type: 'removeCategory'; id: string }
   | { type: 'addExpense'; input: NewExpense; id: string }
-  | { type: 'deleteExpense'; id: string }
-  | { type: 'reset'; month: string };
+  | { type: 'deleteExpense'; id: string };
 
 export function budgetReducer(state: BudgetState, action: BudgetAction): BudgetState {
   switch (action.type) {
@@ -35,7 +33,5 @@ export function budgetReducer(state: BudgetState, action: BudgetAction): BudgetS
       return addExpense(state, action.input, action.id);
     case 'deleteExpense':
       return deleteExpense(state, action.id);
-    case 'reset':
-      return createInitialState(action.month);
   }
 }

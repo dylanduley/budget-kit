@@ -1,10 +1,9 @@
-import { BudgetApp } from '@/features/BudgetApp';
-import { BudgetProvider } from '@/state/BudgetProvider';
+import type { Metadata } from 'next';
 
-export default function HomePage() {
-  return (
-    <BudgetProvider>
-      <BudgetApp />
-    </BudgetProvider>
-  );
+import { OverviewPage } from '@/features/overview/OverviewPage';
+
+export const metadata: Metadata = { title: { absolute: 'Overview · Budget Kit' } };
+
+export default function OverviewRoute() {
+  return <OverviewPage />;
 }

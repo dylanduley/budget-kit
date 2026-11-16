@@ -29,12 +29,12 @@ export interface CategorySummary {
   hasPlan: boolean;
 }
 
-export const SUGGESTED_CATEGORIES: readonly Readonly<Category>[] = Object.freeze([
-  Object.freeze({ id: 'suggested-rent', name: 'Rent', plannedCents: 0 }),
-  Object.freeze({ id: 'suggested-groceries', name: 'Groceries', plannedCents: 0 }),
-  Object.freeze({ id: 'suggested-transport', name: 'Transport', plannedCents: 0 }),
-  Object.freeze({ id: 'suggested-utilities', name: 'Utilities', plannedCents: 0 }),
-  Object.freeze({ id: 'suggested-eating-out', name: 'Eating out', plannedCents: 0 }),
+export const SUGGESTED_CATEGORY_NAMES: readonly string[] = Object.freeze([
+  'Rent',
+  'Groceries',
+  'Transport',
+  'Utilities',
+  'Eating out',
 ]);
 
 const MONTH_NAMES = [
@@ -128,7 +128,7 @@ export function createInitialState(month: string): BudgetState {
   return {
     month,
     incomeCents: 0,
-    categories: SUGGESTED_CATEGORIES.map((category) => ({ ...category })),
+    categories: [],
     expenses: [],
   };
 }

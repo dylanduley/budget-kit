@@ -75,6 +75,7 @@ Render `renderWithBudget(<ExpenseList />, { state })`.
 ## Assumptions
 - Delete has no confirmation and no undo (the brief asks for confirmation only on Reset).
 - The caption is hidden because the Card title already names the section; the caption still names the table for assistive technology.
+- Superseded: the caption is now `Expense table for {Month YYYY}` (changed in app 21, commit d4ccc58). `Expenses in {Month YYYY}` is the Card title's text, so the card and the table region had the same name.
 - Dates are shown as `Nov 5, 2026`.
 - No sorting, filtering, paging or editing.
 

@@ -8,15 +8,17 @@ import {
   isIsoDate,
   isIsoMonth,
 } from '@/lib/budget';
+import type { BudgetBook } from '@/lib/months';
 
 export const STORAGE_KEY = 'budget-kit:budget';
-export const STORAGE_VERSION = 1;
+export const STORAGE_VERSION = 2;
+export const BACKUP_KEY = 'budget-kit:budget:backup';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export type LoadResult =
   | { status: 'empty' }
-  | { status: 'loaded'; state: BudgetState }
+  | { status: 'loaded'; book: BudgetBook; fromVersion: 1 | 2 }
   | { status: 'invalid'; reason: 'corrupt' | 'unsupported-version' }
   | { status: 'unavailable' };
 
@@ -92,6 +94,25 @@ function copyState(state: BudgetState): BudgetState {
   };
 }
 
+function validMonth(value: unknown): BudgetState | null {
+  if (!isBudgetState(value)) return null;
+  const copy = copyState(value);
+  return canBeTotalled(copy) ? copy : null;
+}
+
+function parseBook(book: unknown): BudgetBook | null {
+  if (!isRecord(book) || !Array.isArray(book.months)) return null;
+  const months: BudgetState[] = [];
+  for (const item of book.months) {
+    const month = validMonth(item);
+    if (month === null) return null;
+    months.push(month);
+  }
+  if (new Set(months.map((m) => m.month)).size !== months.length) return null;
+  months.sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0));
+  return { months };
+}
+
 export function parseStoredBudget(raw: string | null): LoadResult {
   if (raw === null) return { status: 'empty' };
   let parsed: unknown;
@@ -101,17 +122,23 @@ export function parseStoredBudget(raw: string | null): LoadResult {
     return { status: 'invalid', reason: 'corrupt' };
   }
   if (!isRecord(parsed)) return { status: 'invalid', reason: 'corrupt' };
-  const { version, state } = parsed;
+  const { version } = parsed;
   if (typeof version !== 'number' || !Number.isInteger(version)) return { status: 'invalid', reason: 'corrupt' };
-  if (version !== STORAGE_VERSION) return { status: 'invalid', reason: 'unsupported-version' };
-  if (!isBudgetState(state)) return { status: 'invalid', reason: 'corrupt' };
-  const copy = copyState(state);
-  if (!canBeTotalled(copy)) return { status: 'invalid', reason: 'corrupt' };
-  return { status: 'loaded', state: copy };
+  if (version === 1) {
+    const state = validMonth(parsed.state);
+    if (state === null) return { status: 'invalid', reason: 'corrupt' };
+    return { status: 'loaded', book: { months: [state] }, fromVersion: 1 };
+  }
+  if (version === STORAGE_VERSION) {
+    const book = parseBook(parsed.book);
+    if (book === null) return { status: 'invalid', reason: 'corrupt' };
+    return { status: 'loaded', book, fromVersion: 2 };
+  }
+  return { status: 'invalid', reason: 'unsupported-version' };
 }
 
-export function serializeBudget(state: BudgetState): string {
-  return JSON.stringify({ version: STORAGE_VERSION, state });
+export function serializeBook(book: BudgetBook): string {
+  return JSON.stringify({ version: STORAGE_VERSION, book: { months: book.months } });
 }
 
 export function loadBudget(storage: StorageLike | null): LoadResult {
@@ -123,10 +150,42 @@ export function loadBudget(storage: StorageLike | null): LoadResult {
   }
 }
 
-export function saveBudget(storage: StorageLike | null, state: BudgetState): boolean {
+export function saveBook(storage: StorageLike | null, book: BudgetBook): boolean {
   if (storage === null) return false;
   try {
-    storage.setItem(STORAGE_KEY, serializeBudget(state));
+    storage.setItem(STORAGE_KEY, serializeBook(book));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export type BackupResult = 'written' | 'present' | 'nothing-stored' | 'failed';
+
+/** True for a load the first save would overwrite with something the old app cannot read. */
+export function needsBackup(result: LoadResult): boolean {
+  return result.status === 'invalid' || (result.status === 'loaded' && result.fromVersion === 1);
+}
+
+/** Copies the raw STORAGE_KEY text to BACKUP_KEY unless BACKUP_KEY already holds something. Never throws. */
+export function backUpStoredBudget(storage: StorageLike | null): BackupResult {
+  if (storage === null) return 'failed';
+  try {
+    if (storage.getItem(BACKUP_KEY) !== null) return 'present';
+    const raw = storage.getItem(STORAGE_KEY);
+    if (raw === null) return 'nothing-stored';
+    storage.setItem(BACKUP_KEY, raw);
+    return 'written';
+  } catch {
+    return 'failed';
+  }
+}
+
+/** Removes BACKUP_KEY. Never throws. Returns false if removeItem threw or storage is null. */
+export function removeBackup(storage: StorageLike | null): boolean {
+  if (storage === null) return false;
+  try {
+    storage.removeItem(BACKUP_KEY);
     return true;
   } catch {
     return false;

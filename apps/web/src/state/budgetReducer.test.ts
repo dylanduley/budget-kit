@@ -4,7 +4,6 @@ import {
   type BudgetState,
   addCategory,
   addExpense,
-  createInitialState,
   deleteExpense,
   removeCategory,
   setIncome,
@@ -55,18 +54,6 @@ describe('budgetReducer delegates to the task 01 functions', () => {
     expect(budgetReducer(SCENARIO, { type: 'setIncome', incomeCents: 500 }).incomeCents).toBe(500);
     expect(budgetReducer(SCENARIO, { type: 'deleteExpense', id: 'e2' }).expenses.map((e) => e.id)).toEqual(['e1', 'e3']);
     expect(budgetReducer(SCENARIO, { type: 'removeCategory', id: 'suggested-rent' }).categories).toHaveLength(4);
-  });
-
-  it('reset returns createInitialState for the given month, ignoring the old state', () => {
-    expect(budgetReducer(frozenScenario(), { type: 'reset', month: '2026-12' })).toEqual(createInitialState('2026-12'));
-    const a = budgetReducer(SCENARIO, { type: 'reset', month: '2026-12' });
-    const b = budgetReducer(SCENARIO, { type: 'reset', month: '2026-12' });
-    expect(a).not.toBe(b);
-    expect(a.categories).not.toBe(b.categories);
-  });
-
-  it('reset with a bad month throws like createInitialState', () => {
-    expect(() => budgetReducer(SCENARIO, { type: 'reset', month: '2026-13' })).toThrow();
   });
 });
 
@@ -130,7 +117,6 @@ describe('budgetReducer purity', () => {
       { type: 'removeCategory', id: 'suggested-groceries' },
       { type: 'addExpense', input: { categoryId: 'suggested-rent', amountCents: 5, note: '', date: '2026-11-02' }, id: 'n' },
       { type: 'deleteExpense', id: 'e1' },
-      { type: 'reset', month: '2027-01' },
     ];
     const state = frozenScenario();
     for (const action of actions) {

@@ -3,7 +3,7 @@
   align-items: center;
   gap: var(--bk-space-2);
   box-sizing: border-box;
-  min-height: var(--bk-space-10);
+  min-height: var(--bk-control-height);
   padding: 0 var(--bk-space-3);
   background: var(--bk-color-surface);
   border: 1px solid var(--bk-color-border-strong);

@@ -2,12 +2,12 @@ import { screen } from '@testing-library/react';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { BudgetApp } from '@/features/BudgetApp';
 import { SCENARIO } from '@/test/fixtures';
-import { renderWithBudget } from '@/test/renderWithBudget';
+import { STORAGE_KEY } from '@/state/storage';
+import { createMemoryStorage } from '@/test/memoryStorage';
+import { renderApp } from '@/test/renderApp';
 
 const SRC = join(import.meta.dirname);
 
@@ -32,20 +32,49 @@ function lineOf(code: string, index: number): number {
 }
 
 describe('the scan sees the app', () => {
-  it('finds the screens, the shell and the state files', () => {
+  // Every shell, page and screen file. A new file under features/ must be added here on purpose, so it is scanned knowingly.
+  const EXPECTED_FEATURE_FILES = [
+    'features/dashboard/Dashboard.tsx',
+    'features/expenses/AddExpense.tsx',
+    'features/expenses/ExpenseList.tsx',
+    'features/expenses/expenseForm.ts',
+    'features/history/DeleteAllData.tsx',
+    'features/history/HistoryPage.tsx',
+    'features/history/MonthsTable.tsx',
+    'features/month/MonthSwitcher.tsx',
+    'features/overview/OverviewPage.tsx',
+    'features/plan/AddCategoryDialog.tsx',
+    'features/plan/CategoriesCard.tsx',
+    'features/plan/CategoryRow.tsx',
+    'features/plan/IncomeCard.tsx',
+    'features/plan/PlanPage.tsx',
+    'features/plan/Suggestions.tsx',
+    'features/plan/actionMessage.ts',
+    'features/shell/AppShell.tsx',
+    'features/shell/navItems.ts',
+    'features/spending/SpendingPage.tsx',
+  ];
+
+  it('names every shell, page and screen file under features/ (and nothing else is hiding there)', () => {
+    expect(featureFiles.map(rel).sort()).toEqual([...EXPECTED_FEATURE_FILES].sort());
+  });
+
+  it('finds the six features/plan component files, the four pages, the shell, the state and the layout', () => {
     const names = codeFiles.map(rel);
     for (const expected of [
-      'features/BudgetApp.tsx',
-      'features/dashboard/Dashboard.tsx',
-      'features/expenses/AddExpense.tsx',
-      'features/expenses/ExpenseList.tsx',
-      'features/setup/MonthSetup.tsx',
-      'features/reset/ResetMonth.tsx',
+      ...EXPECTED_FEATURE_FILES,
       'state/BudgetProvider.tsx',
+      'state/storage.ts',
+      'state/budgetReducer.ts',
       'app/layout.tsx',
+      'app/page.tsx',
+      'app/spending/page.tsx',
+      'app/plan/page.tsx',
+      'app/history/page.tsx',
     ]) {
       expect(names).toContain(expected);
     }
+    expect(names.filter((n) => n.startsWith('features/plan/') && n.endsWith('.tsx'))).toHaveLength(6);
     expect(names.some((n) => n.endsWith('.test.tsx'))).toBe(false);
   });
 });
@@ -64,14 +93,15 @@ describe('every MoneyField has a label ending in (USD)', () => {
         expect(tag, `${rel(file)}:${lineOf(code, start)}`).toMatch(/\blabel=(?:"[^"]* \(USD\)"|\{`[^`]* \(USD\)`\})/);
       }
     }
-    expect(found).toBeGreaterThanOrEqual(4);
+    // IncomeCard, CategoryRow, AddCategoryDialog, AddExpense (counted with grep over non-test .tsx files).
+    expect(found).toBe(4);
   });
 
   it('populated state: every money textbox is named "... (USD)" and the others are name/note fields', () => {
-    renderWithBudget(createElement(BudgetApp), { state: SCENARIO });
+    renderApp({ state: SCENARIO, path: '/plan' });
     const boxes = screen.getAllByRole('textbox');
     const money = boxes.filter((b) => b.getAttribute('inputmode') === 'decimal');
-    expect(money.length).toBe(1 + SCENARIO.categories.length + 1);
+    expect(money.length).toBe(1 + SCENARIO.categories.length);
     for (const box of money) expect(box).toHaveAccessibleName(/ \(USD\)$/);
     for (const box of boxes.filter((b) => !money.includes(b))) {
       expect(box.getAttribute('aria-label') ?? (box as HTMLInputElement).labels?.[0]?.textContent ?? '').not.toMatch(/USD/);
@@ -83,7 +113,6 @@ describe('every MoneyField has a label ending in (USD)', () => {
       'Category 3 planned (USD)',
       'Category 4 planned (USD)',
       'Category 5 planned (USD)',
-      'New category planned (USD)',
     ]);
   });
 });
@@ -104,14 +133,65 @@ describe('alerts and live regions', () => {
         expect(tag, where).toMatch(/data-part="action-error"/);
       }
     }
-    expect(found).toBeGreaterThanOrEqual(5);
+    // Suggestions, CategoryRow, AddCategoryDialog, ExpenseList, AddExpense, DeleteAllData (grep over non-test .tsx files).
+    expect(found).toBe(6);
   });
 
-  it('there is no role="status" and no aria-live', () => {
+  it('app code writes no role="status", aria-atomic or aria-relevant, and exactly one raw aria-live (the month label)', () => {
+    const liveMatches: string[] = [];
     for (const file of codeFiles) {
       const code = stripComments(read(file));
       expect(code, rel(file)).not.toMatch(/role\s*[=:]\s*\{?\s*['"]status['"]/);
-      expect(code, rel(file)).not.toMatch(/aria-live|ariaLive/);
+      expect(code, rel(file)).not.toMatch(/aria-atomic|ariaAtomic|aria-relevant|ariaRelevant/);
+      for (const match of code.matchAll(/aria-live|ariaLive/g)) {
+        const at = match.index ?? 0;
+        const tagStart = code.lastIndexOf('<', at);
+        const tag = code.slice(tagStart, code.indexOf('>', at));
+        liveMatches.push(rel(file));
+        expect(tag.startsWith('<p\n') || tag.startsWith('<p '), `${rel(file)} must be on a <p>`).toBe(true);
+        expect(tag, rel(file)).toMatch(/aria-live="polite"/);
+      }
+    }
+    expect(liveMatches).toEqual(['features/month/MonthSwitcher.tsx']);
+  });
+
+  it('<StatusMessage> is used exactly once in each of the four announcing files and nowhere else', () => {
+    const counts: Record<string, number> = {};
+    for (const file of codeFiles) {
+      const count = Array.from(stripComments(read(file)).matchAll(/<StatusMessage\b/g)).length;
+      if (count > 0) counts[rel(file)] = count;
+    }
+    expect(counts).toEqual({
+      'features/expenses/AddExpense.tsx': 1,
+      'features/expenses/ExpenseList.tsx': 1,
+      'features/plan/CategoriesCard.tsx': 1,
+      'features/shell/AppShell.tsx': 1,
+    });
+  });
+
+  it('every live region on the page is a library StatusMessage or the month label', () => {
+    const table = [
+      { path: '/', messages: 1, labels: 1 },
+      { path: '/spending', messages: 2, labels: 1 },
+      { path: '/plan', messages: 2, labels: 1 },
+      { path: '/history', messages: 1, labels: 0 },
+    ];
+    for (const { path, messages, labels } of table) {
+      for (const options of [{ state: SCENARIO }, { storage: createMemoryStorage({ [STORAGE_KEY]: 'not json' }) }]) {
+        const view = renderApp({ ...options, path });
+        const live = Array.from(document.querySelectorAll('[role="status"], [aria-live]'));
+        const library = live.filter((el) => el.getAttribute('data-part') === 'status-message');
+        const rest = live.filter((el) => el.getAttribute('data-part') !== 'status-message');
+        expect(library, path).toHaveLength(messages);
+        expect(rest, path).toHaveLength(labels);
+        for (const el of rest) {
+          expect(el.tagName, path).toBe('P');
+          expect(el.getAttribute('aria-live'), path).toBe('polite');
+          expect(screen.getAllByRole('banner').some((b) => b.contains(el)), path).toBe(true);
+          expect(el.textContent, path).toBe('November 2026');
+        }
+        view.unmount();
+      }
     }
   });
 });
@@ -152,14 +232,15 @@ describe('every action call is in a try whose catch shows a message', () => {
         expect(enclosing?.catchBody ?? '', `${where}: catch shows no message`).toMatch(/\bset[A-Z]\w*\(|\breturn\b/);
       }
     }
-    // setIncome, updateCategory x2, removeCategory, addCategory, addExpense, deleteExpense, resetMonth.
-    expect(calls).toBeGreaterThanOrEqual(8);
+    // setIncome, updateCategory x2, addCategory x2 (Suggestions, AddCategoryDialog), removeCategory, addExpense,
+    // deleteExpense, deleteAllData: 9 call sites found by grep 'actions\.[A-Za-z]*(' over features/**/*.tsx.
+    expect(calls).toBe(9);
   });
 
   it('actions are never destructured or aliased (which would hide a call from the check)', () => {
     for (const file of featureFiles) {
       const code = stripComments(read(file));
-      expect(code, rel(file)).not.toMatch(/\{[^{}]*\b(setIncome|addCategory|updateCategory|removeCategory|addExpense|deleteExpense|resetMonth)\b[^{}]*\}\s*=\s*(?:\w+\.)?actions\b/);
+      expect(code, rel(file)).not.toMatch(/\{[^{}]*\b(setIncome|addCategory|updateCategory|removeCategory|addExpense|deleteExpense|deleteAllData)\b[^{}]*\}\s*=\s*(?:\w+\.)?actions\b/);
       expect(code, rel(file)).not.toMatch(/=\s*(?:\w+\.)?actions\.\w+\s*[;,)]/);
     }
   });
@@ -173,6 +254,8 @@ describe('no native controls, style props or style tooling', () => {
     ['<textarea', /<textarea/],
     ['<table', /<table/],
     ['<dialog', /<dialog/],
+    ['<a', /<a[\s>]/],
+    ['createElement of a (React.createElement(\'a\'))', /createElement\(\s*['"]a['"]/],
     ['style=', /style=/],
     ['styled(', /styled\(/],
     ['.module.css', /\.module\.css/],
@@ -181,9 +264,18 @@ describe('no native controls, style props or style tooling', () => {
 
   it.each(FORBIDDEN)('no match for %s in any non-test file under src', (_label, pattern) => {
     for (const file of allFiles.filter((f) => !isTest(f) && /\.(tsx?|css|mdx?)$/.test(f))) {
+      // The Next.js link mock in src/test renders an anchor on purpose.
+      if (rel(file).startsWith('test/') && pattern.source.startsWith('createElement')) continue;
       const code = read(file);
       expect(pattern.test(code), `${rel(file)} contains ${pattern}`).toBe(false);
     }
+  });
+
+  it('the createElement rule sees both spellings', () => {
+    const rule = FORBIDDEN.find(([label]) => label.startsWith('createElement'))?.[1];
+    expect(rule?.test("createElement('a', { href: '/' })")).toBe(true);
+    expect(rule?.test('React.createElement( "a", null)')).toBe(true);
+    expect(rule?.test("createElement('abbr')")).toBe(false);
   });
 
   it('the rules do see markup (a sample with a native button matches)', () => {
@@ -245,7 +337,8 @@ describe('className values', () => {
       }
       expect(code, rel(file)).not.toMatch(/\bclass=|\bclassName\s*=\s*\{\s*`|\bclsx\(|\bcx\(/);
     }
-    expect(seen).toBeGreaterThan(15);
+    // 31 `className=` attributes counted by grep over the non-test .tsx files.
+    expect(seen).toBe(31);
   });
 
   it('the className classifier rejects what the conventions forbid', () => {

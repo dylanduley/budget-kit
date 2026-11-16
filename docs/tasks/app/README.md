@@ -17,6 +17,24 @@ Plan for `docs/specs/app-brief.md` (`apps/web`). One file per task; each is self
 
 All paths are under `apps/web/`.
 
+### Follow-ups (planned, not built)
+See [../followups-plan.md](../followups-plan.md) for order, planner defaults and risks.
+
+| # | Task | Depends on | Group | Shared files touched |
+|---|---|---|---|---|
+| 09 | [Invalid money text warns and is not saved](09-invalid-money-not-saved.md) (superseded by 26) | library 14 | F2 | `src/features/setup/MonthSetup.tsx`; one sentence in this README |
+| 10 | [Announce non-error changes with StatusMessage](10-status-announcements.md) (superseded by 27) | library 15, app 09 | F3 | `AddExpense.tsx`, `ExpenseList.tsx`, `MonthSetup.tsx`, `BudgetApp.tsx`, `styling.rules.test.ts`, four existing tests; two passages in this README |
+
+### Follow-ups after the redesign (built and merged on redesign/pages: 26, 27, 28, 29)
+09 and 10 were written before the redesign (app tasks 20–25, `../redesign-plan.md`) and are replaced by 26 and 27. See [../followups-plan2.md](../followups-plan2.md) for order, planner defaults, risks and the existing tests that change.
+
+| # | Task | Depends on | Group | Shared files touched |
+|---|---|---|---|---|
+| 26 | [Invalid money text warns and is not saved](26-invalid-money-not-saved.md) | library 14 | G1 | `src/features/plan/IncomeCard.tsx`, `CategoryRow.tsx`, `AddCategoryDialog.tsx`; one sentence in this README |
+| 28 | [Back up the old saved data before it is first overwritten](28-saved-data-backup.md) | none | G1 | `src/state/storage.ts`, `src/state/BudgetProvider.tsx`; one sentence in this README |
+| 29 | [Compact header on phones](29-compact-header.md) | none | G1 | `src/features/shell/AppShell.tsx` (header), `src/features/month/MonthSwitcher.tsx`; `styling.rules.test.ts` (one count) |
+| 27 | [Announce non-error changes with StatusMessage](27-status-announcements.md) | library 15, app 26, app 29 | G2 | `AddExpense.tsx`, `ExpenseList.tsx`, `CategoriesCard.tsx`, `AddCategoryDialog.tsx`, `AppShell.tsx` (main); `styling.rules.test.ts`; two passages in this README and two in task 25 |
+
 ## Build order and parallel groups
 
 | Order | Group | Tasks | Starts when |
@@ -74,6 +92,7 @@ Stated identically in every task file. In short:
 - **Styling**: no CSS, no `style`, no native controls; Tailwind for layout and spacing only (plus heading/paragraph typography); single column below 640px.
 - **Tests**: QA writes all `*.test.ts(x)` from the acceptance criteria, colocated with the code. The builder of 02 adds the infrastructure (setup file with jest-dom and cleanup, `createMemoryStorage`, `renderWithBudget` with `refresh()`, `expectNoAxeViolations`, the `SCENARIO` fixture). localStorage is faked with `createMemoryStorage` passed to the provider (jsdom's own `localStorage` is also cleared after each test). Tests import from `vitest` explicitly (the app has no Vitest globals). `npm run check` already runs the app's tests (root `test` runs every workspace).
 - **Action errors**: actions can throw (task 01 validation, or the provider's `That change would make a total too large.`). Every screen catches them, keeps its form or dialog open, and shows the message in the matching field's `error` prop, or else in the one permitted app-level alert, `<p role="alert" data-part="action-error">`; unexpected errors read `Something went wrong. Your budget was not changed.` Screen QA tests this with `renderWithFakeBudget` and a throwing action.
+- **Status announcements** (app task 27): non-error changes are announced only through the library's `StatusMessage`, used exactly once in each of `features/shell/AppShell.tsx` (saved data replaced, visible), `features/expenses/AddExpense.tsx` (expense added), `features/expenses/ExpenseList.tsx` (expense deleted) and `features/plan/CategoriesCard.tsx` (category added or removed). Each region is rendered before its text changes, and its text changes only after any focus move and after any dialog has closed. App code writes no `role="status"`, `aria-atomic` or `aria-relevant`, its only raw `aria-live` is the month switcher's label, and `<p role="alert" data-part="action-error">` stays the only app-level alert.
 - **Accessibility checks**: every screen task's QA runs `expectNoAxeViolations` (axe-core in jsdom, all rules except `color-contrast`) on that screen's states; task 08's QA runs it on the whole page in all 14 states, including landmark and heading rules; the a11y-reviewer runs axe **with contrast** in a real browser on each screen task and on 08. jsdom-invisible behaviour (layout at 375px, focus rings, overflow) is in each task's **Manual browser checks**.
 
 ## Open questions for the lead
@@ -88,14 +107,14 @@ Each has the assumption the tasks currently use.
 - **Not used**: `allowNegative`, and any correction text for MoneyField's `Amount is too large`.
 - **Page order**: rollover notice (when it applies), Dashboard, Add expense, Expense list, Set up the month, Reset month. First-run prompts on the dashboard say `…in Set up the month below` and are plain text (no scripted scrolling or focus moves). Applied in 03, 05, 07, 08 and the BudgetApp order above.
 - **Unplanned money** also shows `Not set` before income is entered (05).
-- **Saved-data messages** are wanted (08); unreadable data is overwritten on the first change, with no backup key.
+- **Saved-data messages** are wanted (08); unreadable data is overwritten on the first change. Since app task 28, unreadable or version 1 data is first copied once, byte for byte, to `budget-kit:budget:backup` (never overwritten, removed by Delete all data); there is no restore screen.
 - **Category rename** saves on blur (03).
 - **Reset** restores the five suggested categories at $0 (07).
 - **No confirmation or undo** on Delete expense (06) or Remove category (03).
 - **Rollover notice wording** as written (07).
 - **Expense form**: a category must be chosen; saving closes the dialog, no "add another" (04).
 - **Dependencies approved**: `@testing-library/user-event` and `axe-core` are added to `apps/web` devDependencies in task 02.
-- **Accepted as is**: page-level messages are plain elements and are not announced (except the focused post-reset confirmation); MoneyField reports `null` for both empty and invalid text (empty or invalid income/planned stores 0; forms treat both as missing); app contrast is checked by hand in a real browser, with no automated browser runner.
+- **Accepted as is**: page-level messages are plain elements and are not announced, except the StatusMessage announcements of app task 27 and the focused Delete all data confirmation; MoneyField reports `null` for both empty and invalid text, with the parse result as a second argument; an empty income or planned field stores 0, while invalid text is not saved and shows the library error at once (app task 26); the Add category dialog does not save while its Planned text is invalid; AddExpense treats both as missing; app contrast is checked by hand in a real browser, with no automated browser runner.
 
 ### (a) Library notes (no decision needed; for awareness)
 1. **ProgressBar with `max` 0 shows the danger tone** for any spending. Handled by not rendering a bar for unplanned categories; the library docs could mention it.

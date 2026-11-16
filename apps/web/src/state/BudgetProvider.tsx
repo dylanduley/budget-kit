@@ -4,6 +4,7 @@ import {
   type ReactElement,
   type ReactNode,
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -16,12 +17,29 @@ import {
   type CategoryPatch,
   type NewCategory,
   type NewExpense,
-  createInitialState,
   monthOf,
 } from '@/lib/budget';
 import { todayIso } from '@/lib/clock';
+import {
+  type BudgetBook,
+  EMPTY_BOOK,
+  availableMonths,
+  copySourceFor,
+  findMonth,
+  monthToShow,
+  putMonth,
+} from '@/lib/months';
 import { type BudgetAction, budgetReducer } from '@/state/budgetReducer';
-import { type LoadResult, type StorageLike, canBeTotalled, loadBudget, saveBudget } from '@/state/storage';
+import {
+  type LoadResult,
+  type StorageLike,
+  backUpStoredBudget,
+  canBeTotalled,
+  loadBudget,
+  needsBackup,
+  removeBackup,
+  saveBook,
+} from '@/state/storage';
 
 export interface BudgetActions {
   setIncome(incomeCents: number): void;
@@ -30,7 +48,7 @@ export interface BudgetActions {
   removeCategory(id: string): void;
   addExpense(input: NewExpense): string;
   deleteExpense(id: string): void;
-  resetMonth(): void;
+  deleteAllData(): void;
 }
 
 export type BudgetContextValue =
@@ -38,12 +56,17 @@ export type BudgetContextValue =
   | {
       status: 'ready';
       state: BudgetState;
+      book: BudgetBook;
+      viewedMonth: string;
+      months: string[];
+      isViewedMonthStored: boolean;
+      copiedFromMonth: string | null;
       today: string;
       currentMonth: string;
-      isOtherMonth: boolean;
       generation: number;
       loadStatus: LoadResult['status'];
       savedDataReplaced: boolean;
+      viewMonth(month: string): void;
       actions: BudgetActions;
     };
 
@@ -55,11 +78,13 @@ export interface BudgetProviderProps {
 }
 
 interface Model {
-  state: BudgetState;
+  book: BudgetBook;
+  viewedMonth: string;
   today: string;
   generation: number;
   loadStatus: LoadResult['status'];
   savedDataReplaced: boolean;
+  backupPending: boolean;
 }
 
 export const TOTAL_TOO_LARGE_MESSAGE = 'That change would make a total too large.';
@@ -117,11 +142,13 @@ export function BudgetProvider({
     const today = props.getToday();
     const result = loadBudget(resolved);
     const loaded: Model = {
-      state: result.status === 'loaded' ? result.state : createInitialState(monthOf(today)),
+      book: result.status === 'loaded' ? result.book : EMPTY_BOOK,
+      viewedMonth: monthOf(today),
       today,
       generation: 0,
       loadStatus: result.status,
       savedDataReplaced: false,
+      backupPending: needsBackup(result),
     };
     storageRef.current = resolved;
     modelRef.current = loaded;
@@ -135,16 +162,25 @@ export function BudgetProvider({
       return m;
     }
     // Reduce first so a throwing action leaves state and storage untouched.
-    function commit(action: BudgetAction, generation?: number): void {
+    function commit(action: BudgetAction): void {
       const m = current();
-      const nextState = budgetReducer(m.state, action);
-      if (nextState === m.state) return;
+      const base = monthToShow(m.book, m.viewedMonth);
+      const nextState = budgetReducer(base, action);
+      if (nextState === base) return;
       if (!canBeTotalled(nextState)) throw new RangeError(TOTAL_TOO_LARGE_MESSAGE);
-      const saved = saveBudget(storageRef.current, nextState);
+      const book = putMonth(m.book, nextState);
+      const storage = storageRef.current;
+      const backup = m.backupPending ? backUpStoredBudget(storage) : null;
+      let saved = saveBook(storage, book);
+      // The backup may have taken the space the save needed; the requested save wins.
+      if (!saved && backup === 'written') {
+        removeBackup(storage);
+        saved = saveBook(storage, book);
+      }
       const next: Model = {
         ...m,
-        state: nextState,
-        generation: generation ?? m.generation,
+        book,
+        backupPending: m.backupPending && !saved,
         savedDataReplaced: m.savedDataReplaced || (saved && m.loadStatus === 'invalid'),
       };
       modelRef.current = next;
@@ -165,28 +201,57 @@ export function BudgetProvider({
         return id;
       },
       deleteExpense: (id) => commit({ type: 'deleteExpense', id }),
-      resetMonth: () => {
+      deleteAllData: () => {
         const m = current();
-        commit({ type: 'reset', month: monthOf(m.today) }, m.generation + 1);
+        const saved = saveBook(storageRef.current, EMPTY_BOOK);
+        removeBackup(storageRef.current);
+        const next: Model = {
+          ...m,
+          backupPending: false,
+          book: EMPTY_BOOK,
+          viewedMonth: monthOf(m.today),
+          generation: m.generation + 1,
+          savedDataReplaced: m.savedDataReplaced || (saved && m.loadStatus === 'invalid'),
+        };
+        modelRef.current = next;
+        setModel(next);
       },
     };
+  }, []);
+
+  const viewMonth = useCallback((month: string): void => {
+    const m = modelRef.current;
+    if (m === null) throw new Error('The budget has not loaded yet');
+    if (!availableMonths(m.book, monthOf(m.today)).includes(month)) {
+      throw new RangeError(`Month not available: ${month}`);
+    }
+    if (m.viewedMonth === month) return;
+    const next: Model = { ...m, viewedMonth: month };
+    modelRef.current = next;
+    setModel(next);
   }, []);
 
   const value = useMemo<BudgetContextValue>(() => {
     if (model === null) return { status: 'loading' };
     const currentMonth = monthOf(model.today);
+    const stored = findMonth(model.book, model.viewedMonth);
     return {
       status: 'ready',
-      state: model.state,
+      state: stored ?? monthToShow(model.book, model.viewedMonth),
+      book: model.book,
+      viewedMonth: model.viewedMonth,
+      months: availableMonths(model.book, currentMonth),
+      isViewedMonthStored: stored !== undefined,
+      copiedFromMonth: stored === undefined ? (copySourceFor(model.book, model.viewedMonth)?.month ?? null) : null,
       today: model.today,
       currentMonth,
-      isOtherMonth: model.state.month !== currentMonth,
       generation: model.generation,
       loadStatus: model.loadStatus,
       savedDataReplaced: model.savedDataReplaced,
+      viewMonth,
       actions,
     };
-  }, [model, actions]);
+  }, [model, actions, viewMonth]);
 
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;
 }

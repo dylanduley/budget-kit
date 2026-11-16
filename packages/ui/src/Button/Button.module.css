@@ -21,13 +21,13 @@
 }
 
 .button[data-size='sm'] {
-  min-height: var(--bk-space-8);
+  min-height: var(--bk-control-height-sm);
   padding: var(--bk-space-1) var(--bk-space-3);
   font-size: var(--bk-font-size-sm);
 }
 
 .button[data-size='md'] {
-  min-height: var(--bk-space-10);
+  min-height: var(--bk-control-height);
   font-size: var(--bk-font-size-md);
 }
 
